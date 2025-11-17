@@ -1,0 +1,15 @@
+[package]
+name = "tco-trace"
+version = "0.1.0"
+edition = "2024"
+
+# Publishing Info
+description = "A Rust library to simplify wgpu boilerplate and wgsl complexity for ray tracing projects."
+license = "MIT"
+repository = "https://github.com/btasc/tco-ray-trace"
+
+# Meta / Github
+homepage = "https://github.com/btasc/tco-ray-trace" # Repo link
+readme = "../README.md" # Explanation
+keywords = ["wgpu", "raytracing", "graphics", "wgsl", "compute"] # Keywords for discovery on crates.io
+categories = ["graphics", "rendering"] # Categories for crates
