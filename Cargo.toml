@@ -1,6 +1,6 @@
 [package]
-name = "tco-trace"
-version = "0.1.0"
+name = "laytrace"
+version = "0.1.0-alpha.1"
 edition = "2024"
 
 # Publishing Info
@@ -9,7 +9,7 @@ license = "MIT"
 repository = "https://github.com/btasc/tco-ray-trace"
 
 # Meta / Github
-homepage = "https://github.com/btasc/tco-ray-trace" # Repo link
-readme = "../README.md" # Explanation
+homepage = "https://github.com/btasc/Laytrace" # Repo link
+readme = "README.md" # Explanation
 keywords = ["wgpu", "raytracing", "graphics", "wgsl", "compute"] # Keywords for discovery on crates.io
 categories = ["graphics", "rendering"] # Categories for crates
