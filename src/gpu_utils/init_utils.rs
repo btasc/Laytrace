@@ -1,4 +1,4 @@
-use super::gpu_error::GpuError;
+use crate::error::GpuError;
 use std::sync::Arc;
 
 pub fn make_device_queue_surface_config(window_arc: Arc<winit::window::Window>) -> Result<(wgpu::Device, wgpu::Queue, wgpu::Surface<'static>, wgpu::SurfaceConfiguration), GpuError> {

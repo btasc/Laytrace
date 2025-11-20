@@ -1,14 +1,14 @@
 // Config that specifies all settings for running
 // Has default implemented so you can just select a few things
 #[derive(Debug)]
-pub struct EngineConfig {
+pub struct LatrConfig {
     pub fps_cap: u32,
     pub resolution: (u32, u32),
     pub num_rays: (u32, u32),
     pub run_mode: RunMode,
 }
 
-impl Default for EngineConfig {
+impl Default for LatrConfig {
     fn default() -> Self {
         let resolution: (u32, u32) = (640, 360);
         let num_rays = resolution;
@@ -31,5 +31,5 @@ pub enum RunMode {
     Gui,
 
     // Headless is a testing mode that removes the screen, allowing faster testing
-    Headless,   
+    Headless,
 }

@@ -1,12 +1,22 @@
-use crate::gpu_utils::gpu_core::GpuCore;
-use super::engine_conf::EngineConfig;
+use crate::error::EngineError;
+use crate::config::LatrConfig;
+
+use std::sync::Arc;
+
+use winit::{
+    event_loop::EventLoop,
+    window::WindowBuilder,
+};
 
 pub struct Engine {
-    gpu: GpuCore,
+
 }
 
 impl Engine {
-    pub fn new(config: EngineConfig) -> Self {
-        todo!()
+    pub fn new(config: &LatrConfig) -> Result<Self, EngineError> {
+
+        Ok(Self {
+
+        })
     }
 }

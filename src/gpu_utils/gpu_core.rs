@@ -1,12 +1,9 @@
 use std::sync::Arc;
 
-use crate::engine::engine_conf::{
-    RunMode, EngineConfig,
-};
+use crate::config::LatrConfig;
 
+use crate::error::GpuError;
 use super::init_utils::{make_device_queue_surface_config};
-
-use super::gpu_error::GpuError;
 
 pub struct GpuCore {
     compute_shader: ComputeShader,
@@ -20,7 +17,7 @@ pub struct GpuCore {
 }
 
 impl GpuCore {
-    pub fn new(engine_config: &EngineConfig, window: Arc<winit::window::Window>) -> Result<Self, GpuError> {
+    pub fn new(engine_config: &LatrConfig, window: Arc<winit::window::Window>) -> Result<Self, GpuError> {
         
         let (device, queue, surface, config) = make_device_queue_surface_config(window.clone())?;
         
