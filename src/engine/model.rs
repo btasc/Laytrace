@@ -1,3 +1,5 @@
+use tobj;
+
 pub struct Model {
     name: Option<String>,
     verticies: Vec<f32>,
@@ -13,7 +15,11 @@ impl Model {
         }
     }
 
-    pub fn from_obj(obj_file: String) -> Self {
-        todo!()
+    pub fn from_obj(path: std::path::PathBuf) -> Self {
+        // https://docs.rs/tobj/latest/tobj/
+        let tobj_model = tobj::load_obj(path, &tobj::GPU_LOAD_OPTIONS);
+        assert!(tobj_model.is_ok()); // Make this an error result
+
+        let (models, materials) = tobj_model;
     }
 }
