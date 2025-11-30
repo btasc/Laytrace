@@ -1,13 +1,7 @@
-use crate::{
-    error::{LatrError, WindowError, }, 
-    config::LatrConfig, 
-    engine::{
-        engine_core::Engine,
-        physics::Physics,
-    }, 
-    gpu_utils::gpu_core::GpuCore, 
-    event_loop::run_event_loop,
-};
+use crate::{error::{LatrError, WindowError, }, config::LatrConfig, engine::{
+    engine_core::Engine,
+    physics::Physics,
+}, gpu_utils::gpu_core::GpuCore, event_loop::run_event_loop, PhysicsLoop};
 
 use std::sync::Arc;
 
@@ -22,7 +16,7 @@ pub struct LatrEngine {
 }
 
 impl LatrEngine {
-    pub fn start(self, physics: Physics) -> Result<(), LatrError> {
+    pub fn start<T: PhysicsLoop + 'static + std::marker::Send>(self, state_tps_op: Option<(T, u32)>) -> Result<(), LatrError> {
         let LatrEngine {
             config,
             engine_core,
@@ -31,13 +25,24 @@ impl LatrEngine {
             event_loop,
         } = self;
 
-        run_event_loop(
+        let (mut state, mut tps) = (None, None);
+
+        match state_tps_op {
+            Some(state_tps) => {
+                state = Some(state_tps.0);
+                tps = Some(state_tps.1);
+            },
+            None => (),
+        }
+
+        run_event_loop::<T>(
            config,
            engine_core,
            gpu_core,
            window,
            event_loop,
-           physics,
+           state,
+           tps,
         )?;
 
         Ok(())

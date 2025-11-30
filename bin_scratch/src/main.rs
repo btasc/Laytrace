@@ -5,14 +5,12 @@ fn main() -> Result<(), latr::LatrError> {
         ..Default::default()
     };
 
-    let state = SimState {
+    let mut state = SimState {
         x: "hello!"
     };
 
-    let physics = Physics::new(state);
-
     let mut engine = LatrEngine::new(config)?
-        .start(physics)?;
+        .start(Some((state, 10)))?;
 
     Ok(())
 }
@@ -22,14 +20,15 @@ struct SimState {
 }
 
 impl PhysicsLoop for SimState {
-    fn init(&mut self, physics: Physics) -> Result<(), latr::LatrError> {
+    fn init(&mut self, physics: &mut Physics) -> Result<(), latr::LatrError> {
 
+        println!("Init");
         Ok(())
     }
 
-    fn update(&mut self, physics: Physics) -> Result<(), latr::LatrError> {
+    fn update(&mut self, physics: &mut Physics) -> Result<(), latr::LatrError> {
 
-
+        println!("Update");
         Ok(())
     }
 }

@@ -27,8 +27,8 @@ fn vs_main(@builtin(vertex_index) idx: u32) -> VertexOutput {
 }
 
 // !-- Fragment Shader Code --! //
-@group(0) @binding(0) var my_sampler: sampler;
-@group(0) @binding(1) var input_texture: texture_2d<f32>;
+@group(0) @binding(0) var input_texture: texture_2d<f32>;
+@group(0) @binding(1) var my_sampler: sampler;
 
 @fragment
 fn fs_main(@location(0) in_uv: vec2<f32>) -> @location(0) vec4<f32> {

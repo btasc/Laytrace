@@ -11,6 +11,13 @@ pub struct EngineCamera {
     pub yaw: f32,
 }
 
+impl EngineCamera {
+    // Returns the up, forward, and right vectors respectively
+    pub fn get_unit_vectors() -> ([f32; 3], [f32; 3], [f32; 3]) {
+        todo!()
+    }
+}
+
 impl Default for EngineCamera {
     fn default() -> Self {
         Self {
@@ -39,7 +46,7 @@ impl Default for EngineParams {
 
 // ! -- Params to be passed directly to the gpu -- !
 
-// This is a uniform buffer, so its all the small stuff
+// This is a uniform buffer, so it's all the small stuff
 // We'll have a storage buffer for the vertices later
 // This is what is actually passed into the compute shader
 // This is in engine and not in gpu to make it easier to change something
@@ -59,15 +66,16 @@ pub struct GpuUniformParams {
 
 impl Default for GpuUniformParams {
     fn default() -> Self {
-        let quad_zero_f32 = [0f32, 0f32, 0f32, 0f32];
+        let arr4 = [0f32, 0f32, 0f32, 0f32];
+        let arr2 = [0f32, 0f32];
 
         Self {
-            camera_pos: quad_zero_f32,
-            camera_forward: quad_zero_f32,
-            camera_up: quad_zero_f32,
-            camera_right: quad_zero_f32,
-            screen_dims: [0f32, 0f32],
-            _padding: [0f32, 0f32],
+            camera_pos: arr4,
+            camera_forward: arr4,
+            camera_up: arr4,
+            camera_right: arr4,
+            screen_dims: arr2,
+            _padding: arr2,
         }
     }
 }
