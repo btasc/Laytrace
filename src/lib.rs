@@ -9,5 +9,5 @@ pub use crate::{
     error::LatrError,
     latr_core::LatrEngine,
     config::{ LatrConfig, RunMode },
-    engine::engine_core::{ PhysicsLoop, Physics },
+    engine::physics::{ PhysicsLoop, Physics },
 };

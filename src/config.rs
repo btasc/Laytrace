@@ -17,17 +17,6 @@ pub struct LatrConfig {
     pub resolution: (u32, u32),
     pub num_rays: (u32, u32),
     pub run_mode: RunMode,
-    pub physics: Option<Box<dyn PhysicsLoop>>,
-}
-
-impl LatrConfig {
-    pub fn get_physics(self, engine: &mut Engine) -> Option<Physics> {
-        if let Some(physics) = self.physics {
-            Some(Physics::new(physics, engine))
-        } else {
-            None
-        }
-    }
 }
 
 impl Default for LatrConfig {
@@ -40,7 +29,6 @@ impl Default for LatrConfig {
             resolution,
             num_rays,
             run_mode: RunMode::default(),
-            physics: None,
         }
     }
 }
@@ -63,7 +51,7 @@ pub enum RunMode {
 }
 
 // All this code is here as it technically relates to a config, even though its used on engine
-// Its a bit iffy, but I want to pad the size of this file a bit, 40 lines is too small
+// It's a bit iffy, but I want to pad the size of this file a bit, 40 lines is too small
 #[derive(Deserialize, Debug)]
 struct ExplicitModelConfig {
     name: String,
