@@ -1,7 +1,7 @@
 use latr::{ LatrEngine, LatrConfig, PhysicsLoop, Physics };
 
 fn main() -> Result<(), latr::LatrError> {
-    let mut config = LatrConfig {
+    let config = LatrConfig {
         ..Default::default()
     };
 

@@ -51,3 +51,45 @@ pub fn make_device_queue_surface_config(window_arc: Arc<winit::window::Window>) 
 
     Ok((device, queue, surface, config))
 }
+
+// Creates the texture we write to with the compute shader and read from the fragment shader
+// Important constants
+    // Texture format that we're using for the screen texture
+    const TEXTURE_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8Unorm;
+
+pub fn create_screen_texture(device: &wgpu::Device, texture_size: wgpu::Extent3d) -> wgpu::Texture {
+    device.create_texture(&wgpu::TextureDescriptor {
+        label: Some("Screen Texture"),
+        size: texture_size,
+        mip_level_count: 1,
+        sample_count: 1,
+        view_formats: &[],
+
+        dimension: wgpu::TextureDimension::D2,
+        // ! Compute buffer must output this format and the fragment shader must read this format correctly
+        format: TEXTURE_FORMAT,
+        // OR operator merges the bitflags to mean both texture binding and storage binding
+        usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::STORAGE_BINDING
+    })
+}
+
+// Creates the sampler that is used for scaling up the screen when changing resolutions
+// Note: Creates black bars when scaling up resolution
+// Important constants
+    // Method of scaling
+    // Linear = scales up normally, just blurring slightly to scale up correctly
+    const SCALE_METHOD: wgpu::FilterMode = wgpu::FilterMode::Linear;
+
+pub fn create_sampler(device: &wgpu::Device) -> wgpu::Sampler {
+    device.create_sampler(&wgpu::SamplerDescriptor {
+        address_mode_u: wgpu::AddressMode::ClampToBorder,
+        address_mode_v: wgpu::AddressMode::ClampToBorder,
+        address_mode_w: wgpu::AddressMode::ClampToBorder,
+        border_color: Some(wgpu::SamplerBorderColor::OpaqueBlack),
+
+        mag_filter: SCALE_METHOD,
+        min_filter: SCALE_METHOD,
+
+        ..Default::default()
+    })
+}

@@ -1,6 +1,5 @@
 // Code from previous project, not implemented yet todo!
 // !-- Vertex Shader Code --! //
-
 struct VertexOutput {
     @builtin(position) position: vec4<f32>,
     @location(0) uv: vec2<f32>,
@@ -18,6 +17,7 @@ const POSITIONS = array<vec2<f32>, 4>(
 fn vs_main(@builtin(vertex_index) idx: u32) -> VertexOutput {
     let pos = POSITIONS[idx];
 
+    // Pos y is flipped because it is the distance down, not like a coordinate grid y
     let uv = vec2<f32>(
         (pos.x + 1.0) * 0.5, // (pos.x * 0.5) + 0.5
         (1.0 - pos.y) * 0.5  // (pos.y * -0.5) + 0.5
@@ -33,6 +33,7 @@ fn vs_main(@builtin(vertex_index) idx: u32) -> VertexOutput {
 @fragment
 fn fs_main(@location(0) in_uv: vec2<f32>) -> @location(0) vec4<f32> {
     // Function to sample the texture using the provided sampler at the UV coordinate
+    // Just goes through and takes the pixel color and samples it from the texture
     let final_color = textureSample(input_texture, my_sampler, in_uv);
 
     return final_color;
