@@ -16,6 +16,7 @@ use std::{
     sync::{Arc, mpsc},
     thread,
 };
+use crate::engine::params::GpuUniformParams;
 
 pub fn run_event_loop<T: PhysicsLoop + 'static + std::marker::Send>(
     config: LatrConfig,
@@ -27,6 +28,9 @@ pub fn run_event_loop<T: PhysicsLoop + 'static + std::marker::Send>(
     tps: Option<u32>,
 ) -> Result<(), LatrError> {
     let tick_rate = tps;
+    let params_arc = engine_core.get_params_arc();
+
+    let mut gpu_core = gpu_core;
 
     match state {
         Some(state) => {
@@ -45,10 +49,8 @@ pub fn run_event_loop<T: PhysicsLoop + 'static + std::marker::Send>(
 
     let render_res = event_loop.run(move |event, elwt: &EventLoopWindowTarget<()>| {
         match event {
-
             winit::event::Event::WindowEvent { window_id, event }
-            if window_id == window.id() =>
-                {
+            if window_id == window.id() => {
                     match event {
                         winit::event::WindowEvent::CloseRequested => {
                             println!("Close button was pressed - Exiting.");
@@ -56,14 +58,31 @@ pub fn run_event_loop<T: PhysicsLoop + 'static + std::marker::Send>(
                         }
 
                         winit::event::WindowEvent::RedrawRequested => {
+                            let mut gpu_uniform_params_op: Option<GpuUniformParams> = None;
 
+                            let lock_res = params_arc.lock();
+
+                            match lock_res {
+                                Ok(data_guard) => {
+                                    gpu_uniform_params_op = Some(GpuUniformParams::from_engine_params(&data_guard));
+                                },
+
+                                Err(e) => {
+                                    println!("Fatal error: Physics thread panicked");
+                                }
+                            }
+
+                            match gpu_uniform_params_op {
+                                Some(gpu_uniform_params) => {
+                                    gpu_core.render(&gpu_uniform_params);
+                                },
+                                None => (),
+                            }
                         }
 
                         _ => ()
                     }
                 }
-            
-
             _ => ()
         }
     });

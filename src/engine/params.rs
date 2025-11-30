@@ -34,11 +34,11 @@ pub struct EngineParams {
 // We'll have a storage buffer for the vertices later
 // This is what is actually passed into the compute shader
 // This is in engine and not in gpu to make it easier to change something
-#[repr(C)]
-#[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 // For this to work as a uniform buffer, all the like memory addresses have to be in sets of like 16 bytes
 // An f32 is 32 bits, or 4 bytes, so we need everything to be 4 f32's so that they follow this rule
 // We can add _padding to get screen_dims to follow this, but everything else just has a trailing f32 that does nothing
+#[repr(C)]
+#[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct GpuUniformParams {
     pub camera_pos: [f32; 4],
     pub camera_forward: [f32; 4],

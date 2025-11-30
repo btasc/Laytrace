@@ -58,4 +58,7 @@ pub enum GpuError {
 
     #[error("Failed to find any supported alpha modes on adapter")]
     NoSupportedAlphaModes,
+    
+    #[error("Failed during encoding and submitting process")]
+    EncoderError(#[from] wgpu::SurfaceError),
 }

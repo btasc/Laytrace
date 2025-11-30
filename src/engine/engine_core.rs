@@ -1,12 +1,17 @@
-use crate::{error::{EngineError, LatrError}, config::LatrConfig, Physics, PhysicsLoop};
+use crate::{
+    error::{EngineError, LatrError},
+    config::LatrConfig,
+};
 
 use super::{
     params::{ GpuUniformParams, EngineParams, EngineCamera },
+    physics::{ PhysicsLoop, Physics },
 };
 
 use std::{
     time::Instant,
     thread,
+    sync::{ Arc, Mutex },
 };
 use std::time::Duration;
 
@@ -14,7 +19,7 @@ use std::time::Duration;
 // This way the user doesn't have to be like "engine.engine.run_op", and doesn't have to deal with EngineError vs LatrError
 pub struct Engine {
     gpu_params: GpuUniformParams,
-    engine_params: EngineParams,
+    engine_params: Arc<Mutex<EngineParams>>,
 }
 
 impl Engine {
@@ -26,8 +31,12 @@ impl Engine {
 
         Ok(Self {
             gpu_params: GpuUniformParams::default(),
-            engine_params: engine_params,
+            engine_params: Arc::new(Mutex::new(engine_params)),
         })
+    }
+
+    pub fn get_params_arc(&self) -> Arc<Mutex<EngineParams>> {
+        Arc::clone(&self.engine_params)
     }
     
     pub fn get_gpu_uniform_params(&self) -> &GpuUniformParams { &self.gpu_params }
