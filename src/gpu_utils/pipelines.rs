@@ -53,7 +53,7 @@ pub fn create_render_pipeline(
         cache: None,
 
         primitive: wgpu::PrimitiveState {
-            topology: wgpu::PrimitiveTopology::TriangleList,
+            topology: wgpu::PrimitiveTopology::TriangleStrip,
             ..Default::default()
         },
 

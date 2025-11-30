@@ -123,7 +123,7 @@ impl GpuCore {
             render_pass.set_bind_group(0, &self.render_shader.render_bindgroup, &[]);
 
             // This draws 2 triangles (6 vertices) to cover the screen.
-            render_pass.draw(0..6, 0..1);
+            render_pass.draw(0..4, 0..1);
         }
 
         // The render pass is now recorded in the encoder.

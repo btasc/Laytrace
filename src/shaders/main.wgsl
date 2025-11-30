@@ -4,8 +4,12 @@
 // I have it as red because that way I can know that it works
 
 
-struct SimulationParams {
+struct UniformParams {
     camera_pos: vec3<f32>,
+    camera_up: vec3<f32>,
+    camera_right: vec3<f32>,
+    camera_forward: vec3<f32>,
+    screen_dims: vec3<f32>,
 }
 
 struct Ray {
@@ -26,7 +30,7 @@ fn default_ray() -> Ray {
 }
 
 @group(0) @binding(0)
-var<uniform> simulation_params: SimulationParams;
+var<uniform> uniform_params: UniformParams;
 
 @group(0) @binding(1)
 var output_texture: texture_storage_2d<rgba8unorm, write>;
@@ -48,7 +52,11 @@ fn main(
     let ray: Ray = get_ray_from_screen_coord(math_coord);
 
     // Just sets all pixels to red to test that this works
-    pixel_color = vec3<f32>(1.0, 0.0, 0.0);
+    pixel_color = vec3<f32>(
+        sudorandom(math_coord),
+        sudorandom(vec2<f32>(math_coord.y, math_coord.x)),
+        sudorandom(vec2<f32>(sudorandom(math_coord), sudorandom(vec2<f32>(math_coord.y, math_coord.x)))),
+    );
 
     textureStore(
         output_texture,
@@ -59,7 +67,7 @@ fn main(
 
 fn get_ray_from_screen_coord(screen_coord: vec2<f32>) -> Ray {
     var ray: Ray = default_ray();
-    ray.pos = simulation_params.camera_pos;
+    ray.pos = uniform_params.camera_pos;
 
     // This should be the coordinate of the 2d coordinate but in 3d space relative to the camera
     // As said, this is relative, so its value is actually the same as the momentum
@@ -72,4 +80,10 @@ fn get_ray_from_screen_coord(screen_coord: vec2<f32>) -> Ray {
     ray.mom = screen_3d_coord;
 
     return ray;
+}
+
+fn sudorandom(p: vec2f) -> f32 {
+    var p3 = fract(vec3f(p.xyx) * 0.1031);
+    p3 = p3 + dot(p3, p3.yzx + 33.33);
+    return fract((p3.x + p3.y) * p3.z);
 }

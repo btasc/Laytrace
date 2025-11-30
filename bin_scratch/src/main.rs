@@ -1,7 +1,10 @@
+#![windows_subsystem = "windows"]
+
 use latr::{ LatrEngine, LatrConfig, PhysicsLoop, Physics };
 
 fn main() -> Result<(), latr::LatrError> {
     let config = LatrConfig {
+        resolution: (1920u32, 1080u32),
         ..Default::default()
     };
 

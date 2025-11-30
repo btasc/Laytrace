@@ -49,7 +49,7 @@ impl LatrEngine {
     }
 
     pub fn new(latr_config: LatrConfig) -> Result<Self, LatrError> {
-        let (window, event_loop) = Self::make_window_event_loop()?;
+        let (window, event_loop) = Self::make_window_event_loop(latr_config.resolution)?;
 
         let engine_core = Engine::new(&latr_config)?;
         let params = engine_core.get_gpu_uniform_params();
@@ -65,10 +65,11 @@ impl LatrEngine {
         })
     }
 
-    fn make_window_event_loop() -> Result<(Arc<winit::window::Window>, winit::event_loop::EventLoop<()>), WindowError> {
+    fn make_window_event_loop(resolution: (u32, u32)) -> Result<(Arc<winit::window::Window>, winit::event_loop::EventLoop<()>), WindowError> {
         let event_loop = winit::event_loop::EventLoop::new()?;
 
         let window_arc = Arc::new(winit::window::WindowBuilder::new()
+            .with_inner_size(winit::dpi::LogicalSize::new(resolution.0, resolution.1))
             .build(&event_loop)?);
 
         Ok((window_arc, event_loop))
