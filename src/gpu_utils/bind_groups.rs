@@ -1,5 +1,5 @@
 use wgpu::util::DeviceExt;
-use crate::engine::simulation_params::SimulationParams;
+use crate::engine::params::GpuUniformParams;
 
 use std::mem::size_of;
 use bytemuck;
@@ -66,7 +66,7 @@ pub fn create_compute_bindgroup_layout(device: &wgpu::Device) -> wgpu::BindGroup
                 ty: wgpu::BindingType::Buffer {
                     ty: wgpu::BufferBindingType::Uniform,
                     has_dynamic_offset: false,
-                    min_binding_size: wgpu::BufferSize::new(size_of::<SimulationParams>() as u64),
+                    min_binding_size: wgpu::BufferSize::new(size_of::<GpuUniformParams>() as u64),
                 },
                 count: None,
             },
@@ -108,7 +108,7 @@ pub fn create_compute_bindgroup(
     compute_bind_group
 }
 
-pub fn create_uniform_buffer(device: &wgpu::Device, params: &SimulationParams) -> wgpu::Buffer {
+pub fn create_uniform_buffer(device: &wgpu::Device, params: &GpuUniformParams) -> wgpu::Buffer {
     let uniform_buffer = device.create_buffer_init(
         &wgpu::util::BufferInitDescriptor {
             label: Some("Uniform Buffer"),

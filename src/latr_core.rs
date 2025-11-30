@@ -37,6 +37,7 @@ impl LatrEngine {
            gpu_core,
            window,
            event_loop,
+           physics,
         )?;
 
         Ok(())
@@ -44,9 +45,11 @@ impl LatrEngine {
 
     pub fn new(latr_config: LatrConfig) -> Result<Self, LatrError> {
         let (window, event_loop) = Self::make_window_event_loop()?;
-        
-        let gpu_core = GpuCore::new(&latr_config, window.clone())?;
+
         let engine_core = Engine::new(&latr_config)?;
+        let params = engine_core.get_gpu_uniform_params();
+        
+        let gpu_core = GpuCore::new(&latr_config, window.clone(), params)?;
 
         let config = latr_config;
 

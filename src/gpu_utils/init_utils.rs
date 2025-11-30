@@ -82,11 +82,6 @@ pub fn create_screen_texture(device: &wgpu::Device, texture_size: wgpu::Extent3d
 
 pub fn create_sampler(device: &wgpu::Device) -> wgpu::Sampler {
     device.create_sampler(&wgpu::SamplerDescriptor {
-        address_mode_u: wgpu::AddressMode::ClampToBorder,
-        address_mode_v: wgpu::AddressMode::ClampToBorder,
-        address_mode_w: wgpu::AddressMode::ClampToBorder,
-        border_color: Some(wgpu::SamplerBorderColor::OpaqueBlack),
-
         mag_filter: SCALE_METHOD,
         min_filter: SCALE_METHOD,
 

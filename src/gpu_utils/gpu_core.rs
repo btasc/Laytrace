@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::{
     config::LatrConfig,
     error::GpuError,
-    engine::simulation_params::SimulationParams,
+    engine::params::GpuUniformParams,
 };
 
 use super::init_utils::{
@@ -37,7 +37,7 @@ pub struct GpuCore {
 }
 
 impl GpuCore {
-    pub fn new(engine_config: &LatrConfig, window: Arc<winit::window::Window>, starting_params: &SimulationParams) -> Result<Self, GpuError> {
+    pub fn new(engine_config: &LatrConfig, window: Arc<winit::window::Window>, starting_params: &GpuUniformParams) -> Result<Self, GpuError> {
         
         let (device, queue, surface, config) = make_device_queue_surface_config(window.clone())?;
 
@@ -70,7 +70,7 @@ pub struct ComputeShader {
 }
 
 impl ComputeShader {
-    pub fn new(device: &wgpu::Device, starting_params: &SimulationParams, screen_texture_view: &wgpu::TextureView) -> Self {
+    pub fn new(device: &wgpu::Device, starting_params: &GpuUniformParams, screen_texture_view: &wgpu::TextureView) -> Self {
         let compute_uniform_buffer = create_uniform_buffer(&device, starting_params);
 
         let compute_bindgroup_layout = create_compute_bindgroup_layout(&device);

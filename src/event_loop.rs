@@ -2,7 +2,10 @@ use crate::{
     error::{ LatrError, WindowError },
     latr_core::LatrEngine,
     config::LatrConfig,
-    engine::engine_core::Engine,
+    engine::{
+        engine_core::Engine,
+        physics::Physics,
+    },
     gpu_utils::gpu_core::GpuCore,
 };
 
@@ -16,6 +19,7 @@ pub fn run_event_loop(
     gpu_core: GpuCore,
     window: Arc<winit::window::Window>,
     event_loop: winit::event_loop::EventLoop<()>,
+    physics: Physics,
 ) -> Result<(), LatrError> {
 
     let res = event_loop.run(move |event, elwt: &EventLoopWindowTarget<()>| {
