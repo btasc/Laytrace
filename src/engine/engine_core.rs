@@ -1,7 +1,7 @@
 use crate::{error::{EngineError, LatrError}, config::LatrConfig, Physics, PhysicsLoop};
 
 use super::{
-    params::{ GpuUniformParams, EngineParams },
+    params::{ GpuUniformParams, EngineParams, EngineCamera },
 };
 
 use std::{
@@ -19,10 +19,14 @@ pub struct Engine {
 
 impl Engine {
     pub fn new(config: &LatrConfig) -> Result<Self, EngineError> {
+        let engine_params = EngineParams {
+            camera: EngineCamera::default(),
+            screen_dimensions: config.resolution,
+        };
 
         Ok(Self {
             gpu_params: GpuUniformParams::default(),
-            engine_params: EngineParams::default(),
+            engine_params: engine_params,
         })
     }
     

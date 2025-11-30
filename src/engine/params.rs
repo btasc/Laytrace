@@ -11,13 +11,6 @@ pub struct EngineCamera {
     pub yaw: f32,
 }
 
-impl EngineCamera {
-    // Returns the up, forward, and right vectors respectively
-    pub fn get_unit_vectors() -> ([f32; 3], [f32; 3], [f32; 3]) {
-        todo!()
-    }
-}
-
 impl Default for EngineCamera {
     fn default() -> Self {
         Self {
@@ -30,16 +23,7 @@ impl Default for EngineCamera {
 
 pub struct EngineParams {
     pub camera: EngineCamera,
-}
-
-impl Default for EngineParams {
-    fn default() -> Self {
-        let camera = EngineCamera::default();
-
-        Self {
-            camera,
-        }
-    }
+    pub screen_dimensions: (u32, u32),
 }
 
 
@@ -60,22 +44,83 @@ pub struct GpuUniformParams {
     pub camera_forward: [f32; 4],
     pub camera_up: [f32; 4],
     pub camera_right: [f32; 4],
-    pub screen_dims: [f32; 2], // Two f32's need padding
+    pub screen_dims: [u32; 2], // Two f32's need padding
     pub _padding: [f32; 2], // Makes up for screen_dims
+}
+
+impl GpuUniformParams {
+    pub fn from_engine_params(engine_params: &EngineParams) -> Self {
+        // Init the camera
+        let engine_camera = &engine_params.camera;
+        let [x, y, z] = engine_camera.pos;
+
+        // Again the 0 is just padding
+        let camera_pos = [x, y, z, 0.0];
+
+        let (res_x, res_y) = engine_params.screen_dimensions;
+        let screen_dims = [res_x, res_y];
+
+        // Get the basis vectors for the camera
+        // We assume that Y is up, X is right, and Z is towards the user
+        // By towards the user, imagine you are looking at a 2d graph
+        // A point coming out of the screen towards you is positive Z, and a point going through your monitor away is negative Z
+        // Also a lot of this math code is copy and pasted, so there is a high chance of glitches
+
+        // Precalculate sin and cos values since we need them a lot
+        let (p, y) = (engine_camera.pitch, engine_camera.yaw);
+
+        let cos_p = p.cos();
+        let sin_p = p.sin();
+        let cos_y = y.cos();
+        let sin_y = y.sin();
+
+        // Calculate forward vector
+        // 0 padded at the end, other vectors will follow this convention for the 16 byte rule
+        let forward = [
+            cos_y * cos_p,  // X
+            sin_p,          // Y
+            -sin_y * cos_p, // Z
+            0.0,            // Padding
+        ];
+
+        // Calculate right vector
+        let right = [
+            -sin_y, // X
+            0.0,    // Y
+            -cos_y, // Z
+            0.0,    // Pading
+        ];
+
+        // Calculate up vector
+        let up = [
+            -cos_y * sin_p, // X
+            cos_p,          // Y
+            sin_y * sin_p,  // Z
+            0.0,            // Padding
+        ];
+
+        Self {
+            camera_pos,
+            camera_forward: forward,
+            camera_right: right,
+            camera_up: up,
+            screen_dims,
+            _padding: [0.0, 0.0],
+        }
+    }
 }
 
 impl Default for GpuUniformParams {
     fn default() -> Self {
         let arr4 = [0f32, 0f32, 0f32, 0f32];
-        let arr2 = [0f32, 0f32];
 
         Self {
             camera_pos: arr4,
             camera_forward: arr4,
             camera_up: arr4,
             camera_right: arr4,
-            screen_dims: arr2,
-            _padding: arr2,
+            screen_dims: [0, 0],
+            _padding: [0.0, 0.0],
         }
     }
 }
