@@ -32,6 +32,10 @@ pub enum EngineError {
     
 }
 
+impl EngineError {
+    pub const POISON_ERR: &'static str = "Main thread panicked; Ending engine process";
+}
+
 #[derive(thiserror::Error, Debug)]
 pub enum ConfigError {
     #[error("Cannot find config file: {0}")]

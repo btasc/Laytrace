@@ -3,7 +3,7 @@ use crate::{
     latr_core::LatrEngine,
     config::LatrConfig,
     engine::{
-        engine_core::Engine,
+        engine_core::{ Engine, DoubleBuffer },
     },
     gpu_utils::gpu_core::GpuCore,
     PhysicsLoop
@@ -30,7 +30,8 @@ pub fn run_event_loop<T: PhysicsLoop + 'static + std::marker::Send>(
     let tick_rate = tps;
 
     // Send is moved to engine thread
-    let (engine_rec, engine_send) = mpsc::channel::<EngineParams>();
+    let (engine_send, engine_rec) = mpsc::channel::<EngineParams>();
+    let (double_buf_index_send, double_buf_index_rec) = mpsc::channel::<DoubleBuffer>();
 
     let mut gpu_core = gpu_core;
 
@@ -43,7 +44,7 @@ pub fn run_event_loop<T: PhysicsLoop + 'static + std::marker::Send>(
                 let state = state;
                 let tick_rate = tick_rate.expect("Unreachable: Tick rate is undefined, yet state is. This should not be the case, as they are both passed into start as an option.");
 
-                let engine_res = engine.start_physics_loop(state, tick_rate, engine_rec);
+                let engine_res = engine.start_physics_loop(state, tick_rate, engine_send, double_buf_index_send);
             });
         },
         None => (),
@@ -61,19 +62,25 @@ pub fn run_event_loop<T: PhysicsLoop + 'static + std::marker::Send>(
 
                         winit::event::WindowEvent::RedrawRequested => {
                             let mut latest_params: Option<EngineParams> = None;
+                            let mut latest_double_buffer: Option<DoubleBuffer> = None;
 
                             //println!("REDRAW REQUESTED");
 
-                            while let Ok(data) = engine_send.try_recv() {
+                            while let Ok(data) = engine_rec.try_recv() {
                                 latest_params = Some(data);
                             }
 
+                            while let Ok(data) = double_buf_index_rec.try_recv() {
+                                latest_double_buffer = Some(data);
+                            }
+
                             if let Some(data) = latest_params {
-                                let gpu_params = GpuUniformParams::from_engine_params(&data);
+                                let gpu_uniform_params = GpuUniformParams::from_engine_params(&data);
+                                let gpu_triangle_params = todo!();
 
                                 //println!("{}", data.camera.pos[0]);
 
-                                gpu_core.render(&gpu_params);
+                                gpu_core.render(&gpu_uniform_params);
                             } else {
                                 // Render with old data todo!()
 

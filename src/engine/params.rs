@@ -28,7 +28,19 @@ pub struct EngineParams {
     pub screen_dimensions: (u32, u32),
 }
 
+#[derive(Clone)]
+pub struct TriangleBuffer {
+    pub vertices: Vec<[f32; 3]>,
+    pub triangles: Vec<[u32; 3]>,
+}
 
+
+impl TriangleBuffer {
+    pub fn clear(&mut self) {
+        self.vertices.clear();
+        self.triangles.clear();
+    }
+}
 
 // ! -- Params to be passed directly to the gpu -- !
 
