@@ -52,11 +52,9 @@ fn main(
     let ray: Ray = get_ray_from_screen_coord(math_coord);
 
     // Just sets all pixels to red to test that this works
-    pixel_color = vec3<f32>(
-        sudorandom(math_coord),
-        sudorandom(vec2<f32>(math_coord.y, math_coord.x)),
-        sudorandom(vec2<f32>(sudorandom(math_coord), sudorandom(vec2<f32>(math_coord.y, math_coord.x)))),
-    );
+    if(point_distance(vec2<f32>(global_id.xy), vec2<f32>(500, 500.0)) < uniform_params.camera_pos.x) {
+        pixel_color = vec3<f32>(1.0, 0.25, 0.25);
+    }
 
     textureStore(
         output_texture,
@@ -82,8 +80,9 @@ fn get_ray_from_screen_coord(screen_coord: vec2<f32>) -> Ray {
     return ray;
 }
 
-fn sudorandom(p: vec2f) -> f32 {
-    var p3 = fract(vec3f(p.xyx) * 0.1031);
-    p3 = p3 + dot(p3, p3.yzx + 33.33);
-    return fract((p3.x + p3.y) * p3.z);
+fn point_distance(p1: vec2<f32>, p2: vec2<f32>) -> f32 {
+    return sqrt(
+        (p1.x - p2.x) * (p1.x - p2.x) +
+        (p1.y - p2.y) * (p1.y - p2.y)
+    );
 }

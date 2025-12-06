@@ -5,6 +5,7 @@ use super::engine_core::Engine;
 
 // This will store all of our data for the engine
 // These don't go to the gpu, but you can create the gpu params from these
+#[derive(Clone, Copy)]
 pub struct EngineCamera {
     pub pos: [f32; 3],
     pub pitch: f32,
@@ -21,6 +22,7 @@ impl Default for EngineCamera {
     }
 }
 
+#[derive(Clone, Copy)]
 pub struct EngineParams {
     pub camera: EngineCamera,
     pub screen_dimensions: (u32, u32),

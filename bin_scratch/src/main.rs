@@ -1,6 +1,5 @@
-#![windows_subsystem = "windows"]
 
-use latr::{ LatrEngine, LatrConfig, PhysicsLoop, Physics };
+use latr::{ LatrEngine, LatrConfig, Engine, PhysicsLoop };
 
 fn main() -> Result<(), latr::LatrError> {
     let config = LatrConfig {
@@ -9,7 +8,8 @@ fn main() -> Result<(), latr::LatrError> {
     };
 
     let state = SimState {
-        x: "hello!"
+        x: "hello!",
+        t: false,
     };
 
     let mut engine = LatrEngine::new(config)?
@@ -20,17 +20,25 @@ fn main() -> Result<(), latr::LatrError> {
 
 struct SimState {
     x: &'static str,
+    t: bool,
 }
 
 impl PhysicsLoop for SimState {
-    fn init(&mut self, physics: &mut Physics) -> Result<(), latr::LatrError> {
+    fn init(&mut self, engine: &mut Engine) -> Result<(), latr::LatrError> {
+        engine.move_camera(200.0, 0.0, 0.0);
 
-        println!("Init");
         Ok(())
     }
 
-    fn update(&mut self, physics: &mut Physics) -> Result<(), latr::LatrError> {
-        println!("Update");
+    fn update(&mut self, engine: &mut Engine) -> Result<(), latr::LatrError> {
+        if(self.t) {
+            engine.move_camera(20.0, 0.0, 0.0);
+            self.t = false;
+        } else {
+            engine.move_camera(-20.0, 0.0, 0.0);
+            self.t = true;
+        }
+
         Ok(())
     }
 }

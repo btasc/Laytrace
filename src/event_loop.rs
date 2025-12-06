@@ -4,7 +4,6 @@ use crate::{
     config::LatrConfig,
     engine::{
         engine_core::Engine,
-        physics::Physics,
     },
     gpu_utils::gpu_core::GpuCore,
     PhysicsLoop
@@ -16,7 +15,8 @@ use std::{
     sync::{Arc, mpsc},
     thread,
 };
-use crate::engine::params::GpuUniformParams;
+
+use crate::engine::params::{EngineParams, GpuUniformParams};
 
 pub fn run_event_loop<T: PhysicsLoop + 'static + std::marker::Send>(
     config: LatrConfig,
@@ -28,7 +28,9 @@ pub fn run_event_loop<T: PhysicsLoop + 'static + std::marker::Send>(
     tps: Option<u32>,
 ) -> Result<(), LatrError> {
     let tick_rate = tps;
-    let params_arc = engine_core.get_params_arc();
+
+    // Send is moved to engine thread
+    let (engine_rec, engine_send) = mpsc::channel::<EngineParams>();
 
     let mut gpu_core = gpu_core;
 
@@ -41,7 +43,7 @@ pub fn run_event_loop<T: PhysicsLoop + 'static + std::marker::Send>(
                 let state = state;
                 let tick_rate = tick_rate.expect("Unreachable: Tick rate is undefined, yet state is. This should not be the case, as they are both passed into start as an option.");
 
-                let engine_res = engine.start_physics_loop(state, tick_rate);
+                let engine_res = engine.start_physics_loop(state, tick_rate, engine_rec);
             });
         },
         None => (),
@@ -58,26 +60,26 @@ pub fn run_event_loop<T: PhysicsLoop + 'static + std::marker::Send>(
                         }
 
                         winit::event::WindowEvent::RedrawRequested => {
-                            let mut gpu_uniform_params_op: Option<GpuUniformParams> = None;
+                            let mut latest_params: Option<EngineParams> = None;
 
-                            let lock_res = params_arc.lock();
+                            //println!("REDRAW REQUESTED");
 
-                            match lock_res {
-                                Ok(data_guard) => {
-                                    gpu_uniform_params_op = Some(GpuUniformParams::from_engine_params(&data_guard));
-                                },
-
-                                Err(e) => {
-                                    println!("Fatal error: Physics thread panicked");
-                                }
+                            while let Ok(data) = engine_send.try_recv() {
+                                latest_params = Some(data);
                             }
 
-                            match gpu_uniform_params_op {
-                                Some(gpu_uniform_params) => {
-                                    gpu_core.render(&gpu_uniform_params);
-                                },
-                                None => (),
+                            if let Some(data) = latest_params {
+                                let gpu_params = GpuUniformParams::from_engine_params(&data);
+
+                                //println!("{}", data.camera.pos[0]);
+
+                                gpu_core.render(&gpu_params);
+                            } else {
+                                // Render with old data todo!()
+
                             }
+
+                            window.request_redraw();
                         }
 
                         _ => ()

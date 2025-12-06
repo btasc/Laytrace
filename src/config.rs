@@ -4,8 +4,7 @@ use crate::{
     error::LatrError,
     latr_core::LatrEngine,
     engine::{ 
-        physics::{ PhysicsLoop, Physics }, 
-        engine_core::Engine, 
+        engine_core::Engine,
     },
 };
 
