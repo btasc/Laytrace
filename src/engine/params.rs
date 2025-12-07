@@ -28,12 +28,15 @@ pub struct EngineParams {
     pub screen_dimensions: (u32, u32),
 }
 
+// Even though we directly upload vertices to the gpu, we dont need to pad it
+// This is because we upload it as a Vec<f32>, then stitch it on the gpu
+// Also, a Vec<[f32; 3]> is the same as a Vec<f32> because "zero-cost zero-copy cast" apparently
+// That means that on the gpu, we need to stitch it by making a helper get_vertex function
 #[derive(Clone)]
 pub struct TriangleBuffer {
     pub vertices: Vec<[f32; 3]>,
-    pub triangles: Vec<[u32; 3]>,
+    pub triangles: Vec<TriangleData>,
 }
-
 
 impl TriangleBuffer {
     pub fn clear(&mut self) {
@@ -42,7 +45,24 @@ impl TriangleBuffer {
     }
 }
 
-// ! -- Params to be passed directly to the gpu -- !
+// This will go directly to the gpu, so we bytemuck it
+#[repr(C)]
+#[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct TriangleData {
+    pub vertices: [u32; 3], // Index to the vertex
+    pub _pad: u32,
+    pub color: [f32; 4], // RGBA
+}
+
+impl Default for TriangleData {
+    fn default() -> Self {
+        Self {
+            vertices: [0, 0, 0],
+            _pad: 0,
+            color: [1.0, 1.0, 1.0, 1.0],
+        }
+    }
+}
 
 // This is a uniform buffer, so it's all the small stuff
 // We'll have a storage buffer for the vertices later

@@ -16,7 +16,7 @@ use std::{
     thread,
 };
 
-use crate::engine::params::{EngineParams, GpuUniformParams};
+use crate::engine::params::{EngineParams, GpuUniformParams, TriangleBuffer, TriangleData};
 
 pub fn run_event_loop<T: PhysicsLoop + 'static + std::marker::Send>(
     config: LatrConfig,
@@ -32,6 +32,8 @@ pub fn run_event_loop<T: PhysicsLoop + 'static + std::marker::Send>(
     // Send is moved to engine thread
     let (engine_send, engine_rec) = mpsc::channel::<EngineParams>();
     let (double_buf_index_send, double_buf_index_rec) = mpsc::channel::<DoubleBuffer>();
+
+    let triangle_buffer_arc = engine_core.double_buffer.clone();
 
     let mut gpu_core = gpu_core;
 
@@ -76,14 +78,25 @@ pub fn run_event_loop<T: PhysicsLoop + 'static + std::marker::Send>(
 
                             if let Some(data) = latest_params {
                                 let gpu_uniform_params = GpuUniformParams::from_engine_params(&data);
-                                let gpu_triangle_params = todo!();
+
+                                if let Some(double_buf) = latest_double_buffer {
+                                    let index = double_buf.to_index();
+
+                                    let triangle_buffer = (*triangle_buffer_arc)[index]
+                                        .read()
+                                        .expect("Physics thread has panicked, ending main thread");
+
+                                    let TriangleBuffer {
+                                        vertices: vertices_ref,
+                                        triangles: triangles_ref,
+                                    } = &(*triangle_buffer);
+
+                                    gpu_core.render(&gpu_uniform_params, vertices_ref, triangles_ref);
+                                }
 
                                 //println!("{}", data.camera.pos[0]);
-
-                                gpu_core.render(&gpu_uniform_params);
                             } else {
                                 // Render with old data todo!()
-
                             }
 
                             window.request_redraw();

@@ -4,7 +4,12 @@ use crate::{
 };
 
 use super::{
-    params::{ GpuUniformParams, EngineParams, EngineCamera },
+    params::{
+        GpuUniformParams,
+        EngineParams,
+        EngineCamera,
+        TriangleData,
+    },
 };
 
 use std::{
@@ -46,7 +51,7 @@ impl DoubleBuffer {
         }
     }
 
-    fn to_index(&self) -> usize {
+    pub(crate) fn to_index(&self) -> usize {
         match self {
             DoubleBuffer::Buf1 => 0,
             DoubleBuffer::Buf2 => 1,
@@ -62,7 +67,13 @@ impl Engine {
         };
 
         let vertices = vec!([0.0, 0.0, 0.0], [0.0, 1.0, 0.0], [1.0, 0.0, 0.0]);
-        let triangles = vec!([0, 1, 2]);
+
+        let triangles = vec!(
+            TriangleData {
+                vertices: [0, 1, 2],
+                .. Default::default()
+            }
+        );
 
         let triangle_buffer = TriangleBuffer {
             vertices,

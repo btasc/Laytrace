@@ -9,6 +9,8 @@ use crate::{
 };
 
 use std::sync::Arc;
+use wgpu::naga::VectorSize::Tri;
+use crate::engine::params::TriangleData;
 
 pub struct LatrEngine {
     config: LatrConfig,
@@ -60,7 +62,13 @@ impl LatrEngine {
 
         let gpu_params = GpuUniformParams::from_engine_params(&engine_core.engine_params);
         
-        let gpu_core = GpuCore::new(&latr_config, window.clone(), &gpu_params)?;
+        let gpu_core = GpuCore::new(
+            &latr_config,
+            window.clone(),
+            &gpu_params,
+            &vec![[0.0, 0.0, 0.0]],
+            &vec![TriangleData::default()],
+        )?;
 
         let config = latr_config;
 
