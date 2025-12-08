@@ -126,7 +126,7 @@ pub fn create_compute_bindgroup(
     triangle_buffer: &wgpu::Buffer,
 ) -> wgpu::BindGroup {
     let compute_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-        label: Some("Compute Bind Group"),
+        label: Some("Compute Bindgroup"),
         layout: &compute_bindgroup_layout,
         entries: &[
             wgpu::BindGroupEntry {

@@ -60,7 +60,12 @@ impl GpuCore {
             &screen_texture_view
         );
 
-        let render_shader = RenderShader::new(&device, &screen_texture_view, &sampler, &config);
+        let render_shader = RenderShader::new(
+            &device,
+            screen_texture_view,
+            &sampler,
+            &config
+        );
 
         Ok(Self {
             compute_shader,
@@ -73,9 +78,17 @@ impl GpuCore {
 
     pub fn render(&mut self, uniform_params: &GpuUniformParams, vertices: &Vec<[f32; 3]>, triangle_data: &Vec<TriangleData>) -> Result<(), GpuError> {
         let output = self.surface.get_current_texture()?;
-        let texture_view = output
+
+        let output_texture_view = output
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
+
+        self.compute_shader.check_for_buffer_overflow(
+            &self.device,
+            &self.render_shader.screen_texture_view,
+            &vertices,
+            &triangle_data
+        );
 
         { self.wright_buffers(
             &uniform_params,
@@ -90,8 +103,6 @@ impl GpuCore {
                 label: Some("Main Encoder"),
             });
 
-        self.compute_shader.check_for_buffer_overflow(&vertices, &triangle_data);
-
         // Run compute stuff
         { self.compute_shader.run_compute_pass(
             &mut encoder,
@@ -104,7 +115,7 @@ impl GpuCore {
         // Now we run the render pass
         { self.render_shader.run_render_pass(
             &mut encoder,
-            &texture_view
+            &output_texture_view
         ); };
 
         // The render pass is now recorded in the encoder.
@@ -210,6 +221,7 @@ impl ComputeShader {
     pub fn check_for_buffer_overflow(
         &mut self,
         device: &wgpu::Device,
+        screen_texture: &wgpu::TextureView,
         vertices: &Vec<[f32; 3]>,
         triangle_data: &Vec<TriangleData>,
     ) {
@@ -219,7 +231,16 @@ impl ComputeShader {
         let mut new_vertex_size: u64 = current_vertex_buffer_size;
 
         if(current_vertex_buffer_size < required_vertices_size) {
-            new_vertex_size = current_vertex_buffer_size * 2;
+            new_vertex_size = required_vertices_size * 2;
+
+            self.vertex_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+                label: Some("Vertex storage buffer"),
+                size: new_vertex_size,
+                usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
+                // This is used to give a raw pointer to the mem on the gpu from the cpu
+                // We dont need this at all
+                mapped_at_creation: false,
+            });
         }
 
         let current_triangle_buffer_size = self.triangle_buffer.size() as u64;
@@ -228,34 +249,49 @@ impl ComputeShader {
         let mut new_triangle_size: u64 = current_triangle_buffer_size;
 
         if(current_triangle_buffer_size < required_triangle_size) {
-            new_triangle_size = current_triangle_buffer_size * 2;
+            new_triangle_size = required_triangle_size * 2;
+
+            self.triangle_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+                label: Some("Triangle storage buffer"),
+                size: new_triangle_size,
+                usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
+                // This is used to give a raw pointer to the mem on the gpu from the cpu
+                // We dont need this at all
+                mapped_at_creation: false,
+            });
         }
 
-        self.rebind_vertex_triangle_bindgroup_size(device, new_vertex_size, new_triangle_size);
+        // ! Screen texture should be our initial screen texture, not the output one
+        self.rebind_bindgroup(&device, &screen_texture);
     }
 
-    fn rebind_vertex_triangle_bindgroup_size(&mut self, device: &wgpu::Device, new_vertex_size: u64, new_triangle_size: u64) {
+    fn rebind_bindgroup(
+        &mut self,
+        device: &wgpu::Device,
+        screen_texture: &wgpu::TextureView
+    ) {
         self.bindgroup = device.create_bind_group(&wgpu::BindGroupDescriptor {
             layout: &self.bindgroup_layout,
             label: Some("Compute Bindgroup"),
             entries: &[
-                // Rebind the uniform as normal
                 wgpu::BindGroupEntry {
                     binding: 0,
                     resource: self.uniform_buffer.as_entire_binding(),
                 },
-                // Texture view also stays the same
                 wgpu::BindGroupEntry {
                     binding: 1,
-                    resource: wgpu::BindingResource::TextureView(&self.screen_texture),
+                    resource: wgpu::BindingResource::TextureView(screen_texture),
                 },
                 //
                 wgpu::BindGroupEntry {
                     binding: 2,
+                    resource: self.vertex_buffer.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 3,
                     resource: self.triangle_buffer.as_entire_binding(),
                 },
             ],
-            label: None,
         });
     }
 }
@@ -263,10 +299,11 @@ impl ComputeShader {
 pub struct RenderShader {
     pub pipeline: wgpu::RenderPipeline,
     pub bindgroup: wgpu::BindGroup,
+    pub screen_texture_view: wgpu::TextureView,
 }
 
 impl RenderShader {
-    pub fn new(device: &wgpu::Device, screen_texture_view: &wgpu::TextureView, sampler: &wgpu::Sampler, surface_config: &wgpu::SurfaceConfiguration) -> Self {
+    pub fn new(device: &wgpu::Device, screen_texture_view: wgpu::TextureView, sampler: &wgpu::Sampler, surface_config: &wgpu::SurfaceConfiguration) -> Self {
         let render_bindgroup_layout = create_render_bindgroup_layout(&device);
         let render_bindgroup = create_render_bindgroup(&device, &render_bindgroup_layout, &screen_texture_view, &sampler);
 
@@ -276,6 +313,7 @@ impl RenderShader {
         Self {
             bindgroup: render_bindgroup,
             pipeline: render_pipeline,
+            screen_texture_view,
         }
     }
 
