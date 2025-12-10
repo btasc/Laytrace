@@ -66,7 +66,7 @@ impl Engine {
             screen_dimensions: config.resolution,
         };
 
-        let vertices = vec!([0.0, 0.0, 0.0], [0.0, 1.0, 0.0], [1.0, 0.0, 0.0]);
+        let vertices = vec!([0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]);
 
         let triangles = vec!(
             TriangleData {
@@ -144,7 +144,7 @@ impl Engine {
             }
         }
     }
-    
+
     // Helper function for physics loop
     // Sends params and buf index to visual thread
     fn send_frame(

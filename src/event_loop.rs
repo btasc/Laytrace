@@ -56,55 +56,55 @@ pub fn run_event_loop<T: PhysicsLoop + 'static + std::marker::Send>(
         match event {
             winit::event::Event::WindowEvent { window_id, event }
             if window_id == window.id() => {
-                    match event {
-                        winit::event::WindowEvent::CloseRequested => {
-                            println!("Close button was pressed - Exiting.");
-                            elwt.exit();
-                        }
-
-                        winit::event::WindowEvent::RedrawRequested => {
-                            let mut latest_params: Option<EngineParams> = None;
-                            let mut latest_double_buffer: Option<DoubleBuffer> = None;
-
-                            //println!("REDRAW REQUESTED");
-
-                            while let Ok(data) = engine_rec.try_recv() {
-                                latest_params = Some(data);
-                            }
-
-                            while let Ok(data) = double_buf_index_rec.try_recv() {
-                                latest_double_buffer = Some(data);
-                            }
-
-                            if let Some(data) = latest_params {
-                                let gpu_uniform_params = GpuUniformParams::from_engine_params(&data);
-
-                                if let Some(double_buf) = latest_double_buffer {
-                                    let index = double_buf.to_index();
-
-                                    let triangle_buffer = (*triangle_buffer_arc)[index]
-                                        .read()
-                                        .expect("Physics thread has panicked, ending main thread");
-
-                                    let TriangleBuffer {
-                                        vertices: vertices_ref,
-                                        triangles: triangles_ref,
-                                    } = &(*triangle_buffer);
-
-                                    gpu_core.render(&gpu_uniform_params, vertices_ref, triangles_ref);
-                                }
-
-                                //println!("{}", data.camera.pos[0]);
-                            } else {
-                                // Render with old data todo!()
-                            }
-
-                            window.request_redraw();
-                        }
-
-                        _ => ()
+                match event {
+                    winit::event::WindowEvent::CloseRequested => {
+                        println!("Close button was pressed - Exiting.");
+                        elwt.exit();
                     }
+
+                    winit::event::WindowEvent::RedrawRequested => {
+                        let mut latest_params: Option<EngineParams> = None;
+                        let mut latest_double_buffer: Option<DoubleBuffer> = None;
+
+                        //println!("REDRAW REQUESTED");
+
+                        while let Ok(data) = engine_rec.try_recv() {
+                            latest_params = Some(data);
+                        }
+
+                        while let Ok(data) = double_buf_index_rec.try_recv() {
+                            latest_double_buffer = Some(data);
+                        }
+
+                        if let Some(data) = latest_params {
+                            let gpu_uniform_params = GpuUniformParams::from_engine_params(&data);
+
+                            if let Some(double_buf) = latest_double_buffer {
+                                let index = double_buf.to_index();
+
+                                let triangle_buffer = (*triangle_buffer_arc)[index]
+                                    .read()
+                                    .expect("Physics thread has panicked, ending main thread");
+
+                                let TriangleBuffer {
+                                    vertices: vertices_ref,
+                                    triangles: triangles_ref,
+                                } = &(*triangle_buffer);
+
+                                gpu_core.render(&gpu_uniform_params, vertices_ref, triangles_ref);
+                            }
+
+                            //println!("{}", data.camera.pos[0]);
+                        } else {
+                            // Render with old data todo!()
+                        }
+
+                        window.request_redraw();
+                    }
+
+                    _ => ()
                 }
+            }
             _ => ()
         }
     });

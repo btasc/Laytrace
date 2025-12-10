@@ -52,9 +52,7 @@ fn main(
     let ray: Ray = get_ray_from_screen_coord(math_coord);
 
     // Just sets all pixels to red to test that this works
-    if(point_distance(vec2<f32>(global_id.xy), vec2<f32>(500, 500.0)) < uniform_params.camera_pos.x) {
-        pixel_color = vec3<f32>(1.0, 0.25, 0.25);
-    }
+    pixel_color = compute_ray_color(ray);
 
     textureStore(
         output_texture,
