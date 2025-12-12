@@ -1,5 +1,4 @@
-use wgpu::util::DeviceExt;
-use crate::engine::params::{GpuUniformParams, TriangleData};
+use crate::engine::params::{GpuUniformParams, TriangleData, TriangleWorkUniformParams};
 
 use std::mem::size_of;
 use bytemuck;
@@ -56,9 +55,11 @@ pub fn create_render_bindgroup(
     render_bind_group
 }
 
-pub fn create_compute_bindgroup_layout(device: &wgpu::Device) -> wgpu::BindGroupLayout {
+pub fn create_raytrace_compute_bindgroup_layout(
+    device: &wgpu::Device
+) -> wgpu::BindGroupLayout {
     device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-        label: Some("Compute Bind Group Layout"),
+        label: Some("Raytrace Compute Bind Group Layout"),
         entries: &[
             // Uniform buffer that holds all the small data like camera position and other simple stuff
             wgpu::BindGroupLayoutEntry {
@@ -117,7 +118,138 @@ pub fn create_compute_bindgroup_layout(device: &wgpu::Device) -> wgpu::BindGroup
     })
 }
 
-pub fn create_compute_bindgroup(
+pub fn create_raytrace_compute_bindgroup(
+    device: &wgpu::Device,
+    compute_bindgroup_layout: &wgpu::BindGroupLayout,
+    screen_texture: &wgpu::TextureView,
+    uniform_buffer: &wgpu::Buffer,
+    vertex_buffer: &wgpu::Buffer,
+    triangle_buffer: &wgpu::Buffer,
+) -> wgpu::BindGroup {
+    let compute_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+        label: Some("Raytrace Compute Bindgroup"),
+        layout: &compute_bindgroup_layout,
+        entries: &[
+            wgpu::BindGroupEntry {
+                binding: 0,
+                resource: uniform_buffer.as_entire_binding(),
+            },
+            wgpu::BindGroupEntry {
+                binding: 1,
+                resource: wgpu::BindingResource::TextureView(screen_texture),
+            },
+            wgpu::BindGroupEntry {
+                binding: 2,
+                resource: vertex_buffer.as_entire_binding(),
+            },
+            wgpu::BindGroupEntry {
+                binding: 3,
+                resource: triangle_buffer.as_entire_binding(),
+            },
+        ]
+    });
+
+    compute_bind_group
+}
+
+pub fn create_raytrace_compute_buffers(
+    device: &wgpu::Device,
+) -> (wgpu::Buffer, wgpu::Buffer, wgpu::Buffer) {
+    let uniform_buffer = device.create_buffer(
+        &wgpu::BufferDescriptor {
+            label: Some("Raytrace Uniform Buffer"),
+            size: 1024,
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        }
+    );
+
+    let vertex_buffer = device.create_buffer(
+        &wgpu::BufferDescriptor {
+            label: Some("Raytrace Vertex Buffer"),
+            size: 1024,
+            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        }
+    );
+
+    let triangle_buffer = device.create_buffer(
+        &wgpu::BufferDescriptor {
+            label: Some("Raytrace Triangle Data Buffer"),
+            size: 1024,
+            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        }
+    );
+
+    (uniform_buffer, vertex_buffer, triangle_buffer)
+}
+
+pub fn create_transform_compute_bindgroup_layout(
+    device: &wgpu::Device
+) -> wgpu::BindGroupLayout {
+    device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+        label: Some("Transform Compute Bind Group Layout"),
+        entries: &[
+            // Uniform buffer that holds the information the shader needs to decide where to send resources to do stuff
+            wgpu::BindGroupLayoutEntry {
+                binding: 0, // @binding(0)
+                visibility: wgpu::ShaderStages::COMPUTE,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Uniform,
+                    has_dynamic_offset: false,
+                    min_binding_size: wgpu::BufferSize::new(size_of::<TriangleWorkUniformParams>() as u64),
+                },
+                count: None,
+            },
+
+            // Holds the work orders
+            wgpu::BindGroupLayoutEntry {
+                binding: 1, // @binding(1)
+                visibility: wgpu::ShaderStages::COMPUTE,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Storage { read_only: true },
+                    has_dynamic_offset: false,
+                    // Vec size can change, so i belive this should be false
+                    // Not entirely sure
+                    min_binding_size: None,
+                },
+                count: None,
+            },
+
+            // We literally just keep these the same except for read_only: false
+            // They are just the same buffers from the raytrace one
+            wgpu::BindGroupLayoutEntry {
+                binding: 2,
+                visibility: wgpu::ShaderStages::COMPUTE,
+                ty: wgpu::BindingType::Buffer {
+                    // Read only since we just want to read the vertices, not edit them
+                    ty: wgpu::BufferBindingType::Storage { read_only: false },
+                    has_dynamic_offset: false,
+                    // None because vec size can change
+                    min_binding_size: None,
+                },
+                count: None,
+            },
+
+            // 
+            wgpu::BindGroupLayoutEntry {
+                binding: 3,
+                visibility: wgpu::ShaderStages::COMPUTE,
+                ty: wgpu::BindingType::Buffer {
+                    // Read only since we just want to read the vertices, not edit them
+                    ty: wgpu::BufferBindingType::Storage { read_only: false },
+                    has_dynamic_offset: false,
+                    // None because vec size can change
+                    min_binding_size: None,
+                },
+                count: None,
+            },
+        ],
+    })
+}
+
+pub fn create_transform_compute_bindgroup(
     device: &wgpu::Device,
     compute_bindgroup_layout: &wgpu::BindGroupLayout,
     screen_texture: &wgpu::TextureView,
@@ -151,35 +283,27 @@ pub fn create_compute_bindgroup(
     compute_bind_group
 }
 
-pub fn create_buffers(device: &wgpu::Device, params: &GpuUniformParams, vertices: &Vec<[f32; 3]>, triangle_data: &Vec<TriangleData>) -> (wgpu::Buffer, wgpu::Buffer, wgpu::Buffer) {
-    let uniform_buffer = device.create_buffer_init(
-        &wgpu::util::BufferInitDescriptor {
-            label: Some("Uniform Buffer"),
-            contents: bytemuck::bytes_of(params),
-            // UNIFORM marks this as special, and COPY_DST lets us update the buffer
+pub fn create_transform_compute_buffers(
+    device: &wgpu::Device,
+    params: &GpuUniformParams,
+) -> (wgpu::Buffer, wgpu::Buffer) {
+    let uniform_buffer = device.create_buffer(
+        &wgpu::BufferDescriptor {
+            label: Some("Transform Uniform Buffer"),
+            size: size_of::<TriangleWorkUniformParams>() as u64,
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
         }
     );
 
-    let vertex_buffer = device.create_buffer_init(
-        &wgpu::util::BufferInitDescriptor {
-            label: Some("Vertex Buffer"),
-            // We dont need to do .as_slice because its a reference
-            contents: bytemuck::cast_slice(vertices),
-            // STORAGE marks it as a storage buffer, and copy_dst lets is change it
+    let triangle_order_buffer = device.create_buffer(
+        &wgpu::BufferDescriptor {
+            label: Some("Transform Order Buffer"),
+            size: 1024,
             usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
         }
     );
 
-    let triangle_buffer = device.create_buffer_init(
-        &wgpu::util::BufferInitDescriptor {
-            label: Some("Triangle Data Buffer"),
-            // Same as the vertex
-            contents: bytemuck::cast_slice(triangle_data),
-            // STORAGE marks it as a storage buffer, and copy_dst lets is change it
-            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
-        }
-    );
-
-    (uniform_buffer, vertex_buffer, triangle_buffer)
+    (uniform_buffer, triangle_order_buffer)
 }

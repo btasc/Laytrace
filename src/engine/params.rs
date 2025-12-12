@@ -1,6 +1,3 @@
-use super::engine_core::Engine;
-
-
 // ! -- Params that are just for the engine, not the gpu -- !
 
 // This will store all of our data for the engine
@@ -62,6 +59,30 @@ impl Default for TriangleData {
             color: [1.0, 1.0, 1.0, 1.0],
         }
     }
+}
+
+#[repr(C)]
+#[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct TriangleWorkUniformParams {
+    pub effected_vertices: u32,
+}
+
+#[repr(C)]
+#[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct TriangleWorkOrder {
+    // Makes new vertices at 0, 0, 0, and new triangles as completely blank and white
+    // You have to pass in a transform order to do stuff with them
+    pub is_make_order: i32,
+    pub is_delete_order: i32,
+    pub is_transform_order: i32,
+
+    pub _is_pad: f32,
+
+    // mat 4x4 on the gpu
+    pub transform_setup: [f32; 16],
+
+    pub effected_vertices: [u32; 2],
+    pub _vert_pad: [f32; 2],
 }
 
 // This is a uniform buffer, so it's all the small stuff

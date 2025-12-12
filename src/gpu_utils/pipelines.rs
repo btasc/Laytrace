@@ -1,7 +1,9 @@
-pub const COMPUTE_WGSL: &'static str = concat!(
+pub const RAYTRACE_COMPUTE_WGSL: &'static str = concat!(
     include_str!("../shaders/main.wgsl"), "\n\n",
     include_str!("../shaders/collision.wgsl"),
 );
+
+pub const TRANSFORM_COMPUTE_WGSL: &'static str = include_str!("../shaders/transformer.wgsl");
 
 pub const RENDER_WGSL: &'static str = include_str!("../shaders/blit.wgsl");
 
@@ -63,23 +65,50 @@ pub fn create_render_pipeline(
     render_pipeline
 }
 
-pub fn create_compute_pipeline(
+pub fn create_raytrace_compute_pipeline(
     device: &wgpu::Device,
     compute_bindgroup_layout: &wgpu::BindGroupLayout,
 ) -> wgpu::ComputePipeline {
     let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-        label: Some("Compute Shader Module"),
-        source: wgpu::ShaderSource::Wgsl(COMPUTE_WGSL.into()),
+        label: Some("Raytrace Compute Shader Module"),
+        source: wgpu::ShaderSource::Wgsl(RAYTRACE_COMPUTE_WGSL.into()),
     });
 
     let compute_pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-        label: Some("Compute Pipeline Layout"),
+        label: Some("Raytrace Compute Pipeline Layout"),
         bind_group_layouts: &[&compute_bindgroup_layout],
         push_constant_ranges: &[],
     });
 
     let compute_pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
-        label: Some("Compute Pipeline"),
+        label: Some("Raytrace Compute Pipeline"),
+        layout: Some(&compute_pipeline_layout),
+        module: &shader,
+        entry_point: Some("main"), // The function to call in compute.wgsl
+        compilation_options: wgpu::PipelineCompilationOptions::default(),
+        cache: None,
+    });
+
+    compute_pipeline
+}
+
+pub fn create_transform_compute_pipeline(
+    device: &wgpu::Device,
+    compute_bindgroup_layout: &wgpu::BindGroupLayout,
+) -> wgpu::ComputePipeline {
+    let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+        label: Some("Transform Compute Shader Module"),
+        source: wgpu::ShaderSource::Wgsl(TRANSFORM_COMPUTE_WGSL.into()),
+    });
+
+    let compute_pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+        label: Some("Transform Compute Pipeline Layout"),
+        bind_group_layouts: &[&compute_bindgroup_layout],
+        push_constant_ranges: &[],
+    });
+
+    let compute_pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+        label: Some("Transform Compute Pipeline"),
         layout: Some(&compute_pipeline_layout),
         module: &shader,
         entry_point: Some("main"), // The function to call in compute.wgsl

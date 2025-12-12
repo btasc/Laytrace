@@ -10,12 +10,16 @@ use super::init_utils::{
 };
 
 use super::shaders::{
-    ComputeRaytraceShader, RenderShader
+    ComputeRaytraceShader,
+    RenderShader,
+    ComputeTransformShader,
 };
 
 
 pub struct GpuCore {
-    compute_shader: ComputeRaytraceShader,
+    compute_raytrace_shader: ComputeRaytraceShader,
+    compute_transform_shader: ComputeTransformShader,
+
     render_shader: RenderShader,
 
     pub device: wgpu::Device,
@@ -46,12 +50,14 @@ impl GpuCore {
         let screen_texture = create_screen_texture(&device, texture_size);
         let screen_texture_view = screen_texture.create_view(&wgpu::TextureViewDescriptor::default());
 
-        let compute_shader = ComputeRaytraceShader::new(
+        let compute_raytrace_shader = ComputeRaytraceShader::new(
             &device, gpu_uniform_params,
             vertex_params,
             triangle_params,
             &screen_texture_view
         );
+
+        let compute_transform_shader = ComputeTransformShader::new();
 
         let render_shader = RenderShader::new(
             &device,
@@ -61,7 +67,9 @@ impl GpuCore {
         );
 
         Ok(Self {
-            compute_shader,
+            compute_raytrace_shader,
+            compute_transform_shader,
+
             render_shader,
             
             device, queue,
@@ -76,18 +84,24 @@ impl GpuCore {
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
 
-        self.compute_shader.check_for_buffer_overflow(
-            &self.device,
-            &self.render_shader.screen_texture_view,
+        let raytrace_buffer_res = self.compute_raytrace_shader.check_for_buffer_overflow(
             &vertices,
             &triangle_data
         );
+
+        match raytrace_buffer_res {
+            Some((new_vertex_size, new_triangle_size)) => {
+                self.compute_raytrace_shader.rebind_buffers_size(&self.device, new_vertex_size, new_triangle_size);
+                self.compute_raytrace_shader.rebind_bindgroup(&self.device, &self.render_shader.screen_texture_view);
+            },
+            None => (),
+        }
 
         { self.wright_buffers(
             &uniform_params,
             &vertices,
             &triangle_data
-        ) };
+        ); };
 
         // Make the command encoder
         let mut encoder = self
@@ -97,7 +111,7 @@ impl GpuCore {
             });
 
         // Run compute stuff
-        { self.compute_shader.run_compute_pass(
+        { self.compute_raytrace_shader.run_compute_pass(
             &mut encoder,
             self.config.width,
             self.config.height
@@ -129,19 +143,19 @@ impl GpuCore {
         triangle_data: &Vec<TriangleData>,
     ) {
         self.queue.write_buffer(
-            &self.compute_shader.uniform_buffer,
+            &self.compute_raytrace_shader.uniform_buffer,
             0,
             bytemuck::cast_slice(&[*uniform_params]),
         );
 
         self.queue.write_buffer(
-            &self.compute_shader.vertex_buffer,
+            &self.compute_raytrace_shader.vertex_buffer,
             0,
             bytemuck::cast_slice(vertices),
         );
 
         self.queue.write_buffer(
-            &self.compute_shader.triangle_buffer,
+            &self.compute_raytrace_shader.triangle_buffer,
             0,
             bytemuck::cast_slice(triangle_data),
         );

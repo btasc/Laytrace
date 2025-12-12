@@ -1,29 +1,48 @@
+use wgpu::BindGroup;
 use crate::engine::params::{
     GpuUniformParams,
     TriangleData
 };
 
 use super::bind_groups::{
-    create_buffers,
-    create_compute_bindgroup,
-    create_compute_bindgroup_layout,
+    create_raytrace_compute_buffers,
+    create_raytrace_compute_bindgroup,
+    create_raytrace_compute_bindgroup_layout,
     create_render_bindgroup,
     create_render_bindgroup_layout
 };
 
 use super::pipelines::{
-    create_compute_pipeline,
+    create_raytrace_compute_pipeline,
     create_render_pipeline
 };
 
-pub struct ComputeTriangleTransformer {
+pub struct ComputeTransformShader {
+    pub pipeline: wgpu::ComputePipeline,
+    pub bind_group: BindGroup,
+    pub bind_group_layout: wgpu::BindGroupLayout,
 
+    pub uniform_describe_buffer: wgpu::Buffer,
+    pub order_buffer: wgpu::Buffer,
+
+    // Also shares vertex buffer and triangle buffer with the raytrace shader
+}
+
+impl ComputeTransformShader {
+    pub fn new() -> Self {
+        let ()
+
+        Self {
+
+        }
+    }
 }
 
 pub struct ComputeRaytraceShader {
     pub pipeline: wgpu::ComputePipeline,
     pub bindgroup: wgpu::BindGroup,
     pub bindgroup_layout: wgpu::BindGroupLayout,
+
     pub uniform_buffer: wgpu::Buffer,
     pub vertex_buffer: wgpu::Buffer,
     pub triangle_buffer: wgpu::Buffer,
@@ -32,21 +51,13 @@ pub struct ComputeRaytraceShader {
 impl ComputeRaytraceShader {
     pub fn new(
         device: &wgpu::Device,
-        uniform_params: &GpuUniformParams,
-        vertices: &Vec<[f32; 3]>,
-        triangle_data: &Vec<TriangleData>,
         screen_texture_view: &wgpu::TextureView,
     ) -> Self {
-        let (compute_uniform_buffer, vertex_buffer, triangle_buffer) = create_buffers(
-            &device,
-            uniform_params,
-            vertices,
-            triangle_data,
-        );
+        let (compute_uniform_buffer, vertex_buffer, triangle_buffer) = create_raytrace_compute_buffers(&device);
 
-        let compute_bindgroup_layout = create_compute_bindgroup_layout(&device);
+        let compute_bindgroup_layout = create_raytrace_compute_bindgroup_layout(&device);
 
-        let compute_bindgroup = create_compute_bindgroup(
+        let compute_bindgroup = create_raytrace_compute_bindgroup(
             &device,
             &compute_bindgroup_layout,
             &screen_texture_view,
@@ -55,7 +66,7 @@ impl ComputeRaytraceShader {
             &triangle_buffer,
         );
 
-        let compute_pipeline = create_compute_pipeline(&device, &compute_bindgroup_layout);
+        let compute_pipeline = create_raytrace_compute_pipeline(&device, &compute_bindgroup_layout);
 
         Self {
             uniform_buffer: compute_uniform_buffer,
@@ -67,7 +78,12 @@ impl ComputeRaytraceShader {
         }
     }
 
-    pub fn run_compute_pass(&self, encoder: &mut wgpu::CommandEncoder, width: u32, height: u32) {
+    pub fn run_compute_pass(
+        &self,
+        encoder: &mut wgpu::CommandEncoder,
+        width: u32,
+        height: u32
+    ) {
         let mut compute_pass =
             encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
                 label: Some("Ray Tracing Pass"),
@@ -85,11 +101,11 @@ impl ComputeRaytraceShader {
 
     pub fn check_for_buffer_overflow(
         &mut self,
-        device: &wgpu::Device,
-        screen_texture: &wgpu::TextureView,
         vertices: &Vec<[f32; 3]>,
         triangle_data: &Vec<TriangleData>,
-    ) {
+    ) -> Option<(u64, u64)> {
+        let mut was_changed: bool = false;
+
         let current_vertex_buffer_size = self.vertex_buffer.size() as u64;
         let required_vertices_size = (size_of::<[f32; 3]>() * vertices.len()) as u64;
 
@@ -98,14 +114,7 @@ impl ComputeRaytraceShader {
         if(current_vertex_buffer_size < required_vertices_size) {
             new_vertex_size = required_vertices_size * 2;
 
-            self.vertex_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-                label: Some("Vertex storage buffer"),
-                size: new_vertex_size,
-                usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
-                // This is used to give a raw pointer to the mem on the gpu from the cpu
-                // We dont need this at all
-                mapped_at_creation: false,
-            });
+            was_changed = true;
         }
 
         let current_triangle_buffer_size = self.triangle_buffer.size() as u64;
@@ -116,21 +125,40 @@ impl ComputeRaytraceShader {
         if(current_triangle_buffer_size < required_triangle_size) {
             new_triangle_size = required_triangle_size * 2;
 
-            self.triangle_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-                label: Some("Triangle storage buffer"),
-                size: new_triangle_size,
-                usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
-                // This is used to give a raw pointer to the mem on the gpu from the cpu
-                // We dont need this at all
-                mapped_at_creation: false,
-            });
+            was_changed = true;
         }
 
-        // ! Screen texture should be our initial screen texture, not the output one
-        self.rebind_bindgroup(&device, &screen_texture);
+        match was_changed {
+            true => Some((new_vertex_size, new_triangle_size)),
+            false => None
+        }
     }
 
-    fn rebind_bindgroup(
+    pub fn rebind_buffers_size(
+        &mut self,
+        device: &wgpu::Device,
+        new_vertex_size: u64,
+        new_triangle_size: u64
+    ) {
+        self.vertex_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+           label: Some("Vertex storage buffer"),
+            size: new_vertex_size,
+            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
+            // This is used to give a raw pointer to the mem on the gpu from the cpu
+            // We dont need this at all
+            // At least i think thats what it does, not sure
+            mapped_at_creation: false,
+        });
+
+        self.triangle_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("Triangle storage buffer"),
+            size: new_triangle_size,
+            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+    }
+
+    pub(crate) fn rebind_bindgroup(
         &mut self,
         device: &wgpu::Device,
         screen_texture: &wgpu::TextureView
