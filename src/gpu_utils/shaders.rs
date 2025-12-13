@@ -8,32 +8,60 @@ use super::bind_groups::{
     create_raytrace_compute_buffers,
     create_raytrace_compute_bindgroup,
     create_raytrace_compute_bindgroup_layout,
+    
+    create_transform_compute_buffers,
+    create_transform_compute_bindgroup,
+    create_transform_compute_bindgroup_layout,
+    
     create_render_bindgroup,
-    create_render_bindgroup_layout
+    create_render_bindgroup_layout,
 };
 
 use super::pipelines::{
     create_raytrace_compute_pipeline,
-    create_render_pipeline
+    create_render_pipeline,
+    create_transform_compute_pipeline,
 };
 
 pub struct ComputeTransformShader {
     pub pipeline: wgpu::ComputePipeline,
-    pub bind_group: BindGroup,
-    pub bind_group_layout: wgpu::BindGroupLayout,
+    pub bindgroup: BindGroup,
+    pub bindgroup_layout: wgpu::BindGroupLayout,
 
-    pub uniform_describe_buffer: wgpu::Buffer,
+    pub uniform_descriptor_buffer: wgpu::Buffer,
     pub order_buffer: wgpu::Buffer,
 
     // Also shares vertex buffer and triangle buffer with the raytrace shader
 }
 
 impl ComputeTransformShader {
-    pub fn new() -> Self {
-        let ()
+    pub fn new(
+        device: &wgpu::Device,
+        vertex_buffer: &wgpu::Buffer,
+        triangle_buffer: &wgpu::Buffer,
+    ) -> Self {
+        let (uniform_descriptor_buffer, order_buffer) = create_transform_compute_buffers(&device);
+        
+        let bindgroup_layout = create_transform_compute_bindgroup_layout(&device);
+        
+        let bindgroup = create_transform_compute_bindgroup(
+            &device, 
+            &bindgroup_layout,
+            &uniform_descriptor_buffer,
+            &order_buffer,
+            &vertex_buffer,
+            &triangle_buffer,
+        );
+        
+        let pipeline = create_transform_compute_pipeline(&device, &bindgroup_layout);
 
         Self {
-
+            pipeline,
+            bindgroup,
+            bindgroup_layout,
+            
+            uniform_descriptor_buffer,
+            order_buffer,
         }
     }
 }

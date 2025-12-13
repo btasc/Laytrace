@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::{config::LatrConfig, error::GpuError, engine::params::GpuUniformParams, LatrError};
-use crate::engine::params::TriangleData;
+use crate::engine::params::{TriangleData, TriangleWorkOrder};
 
 use super::init_utils::{
     make_device_queue_surface_config,
@@ -30,13 +30,7 @@ pub struct GpuCore {
 }
 
 impl GpuCore {
-    pub fn new(
-        engine_config: &LatrConfig,
-        window: Arc<winit::window::Window>,
-        gpu_uniform_params: &GpuUniformParams,
-        vertex_params: &Vec<[f32; 3]>,
-        triangle_params: &Vec<TriangleData>
-    ) -> Result<Self, GpuError> {
+    pub fn new(window: Arc<winit::window::Window>, ) -> Result<Self, GpuError> {
         
         let (device, queue, surface, config) = make_device_queue_surface_config(window.clone())?;
 
@@ -51,13 +45,15 @@ impl GpuCore {
         let screen_texture_view = screen_texture.create_view(&wgpu::TextureViewDescriptor::default());
 
         let compute_raytrace_shader = ComputeRaytraceShader::new(
-            &device, gpu_uniform_params,
-            vertex_params,
-            triangle_params,
+            &device,
             &screen_texture_view
         );
 
-        let compute_transform_shader = ComputeTransformShader::new();
+        let compute_transform_shader = ComputeTransformShader::new(
+            &device,
+            &compute_raytrace_shader.vertex_buffer,
+            &compute_raytrace_shader.triangle_buffer,
+        );
 
         let render_shader = RenderShader::new(
             &device,
@@ -77,31 +73,12 @@ impl GpuCore {
         })
     }
 
-    pub fn render(&mut self, uniform_params: &GpuUniformParams, vertices: &Vec<[f32; 3]>, triangle_data: &Vec<TriangleData>) -> Result<(), GpuError> {
+    pub fn render(&mut self, orders: Vec<TriangleWorkOrder>) -> Result<(), GpuError> {
         let output = self.surface.get_current_texture()?;
 
         let output_texture_view = output
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
-
-        let raytrace_buffer_res = self.compute_raytrace_shader.check_for_buffer_overflow(
-            &vertices,
-            &triangle_data
-        );
-
-        match raytrace_buffer_res {
-            Some((new_vertex_size, new_triangle_size)) => {
-                self.compute_raytrace_shader.rebind_buffers_size(&self.device, new_vertex_size, new_triangle_size);
-                self.compute_raytrace_shader.rebind_bindgroup(&self.device, &self.render_shader.screen_texture_view);
-            },
-            None => (),
-        }
-
-        { self.wright_buffers(
-            &uniform_params,
-            &vertices,
-            &triangle_data
-        ); };
 
         // Make the command encoder
         let mut encoder = self
@@ -110,7 +87,12 @@ impl GpuCore {
                 label: Some("Main Encoder"),
             });
 
-        // Run compute stuff
+        // Run transform shader
+        { self.compute_transform_shader.run_compute_pass(
+
+        ); };
+
+        // Run compute raytracer
         { self.compute_raytrace_shader.run_compute_pass(
             &mut encoder,
             self.config.width,

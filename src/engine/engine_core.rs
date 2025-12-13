@@ -5,18 +5,18 @@ use crate::{
 
 use super::{
     params::{
-        GpuUniformParams,
         EngineParams,
         EngineCamera,
-        TriangleData,
+        TriangleWorkOrder,
     },
 };
 
 use std::{
     time::{Instant, Duration},
     thread,
-    sync::{ Arc, RwLock, mpsc },
 };
+
+use std::sync::mpsc;
 use crate::engine::params::TriangleBuffer;
 
 pub trait PhysicsLoop {
@@ -28,35 +28,7 @@ pub trait PhysicsLoop {
 // This way the user doesn't have to be like "engine.engine.run_op", and doesn't have to deal with EngineError vs LatrError
 pub struct Engine {
     pub engine_params: EngineParams,
-    pub triangle_buffer: TriangleBuffer,
-
-    pub double_buffer: Arc<[RwLock<TriangleBuffer>; 2]>,
-}
-
-#[derive(PartialEq)]
-pub enum DoubleBuffer {
-    Buf1,
-    Buf2,
-}
-
-impl DoubleBuffer {
-    fn flip(&mut self) {
-        *self = self.get_flip();
-    }
-
-    fn get_flip(&self) -> Self {
-        match self {
-            DoubleBuffer::Buf1 => DoubleBuffer::Buf2,
-            DoubleBuffer::Buf2 => DoubleBuffer::Buf1,
-        }
-    }
-
-    pub(crate) fn to_index(&self) -> usize {
-        match self {
-            DoubleBuffer::Buf1 => 0,
-            DoubleBuffer::Buf2 => 1,
-        }
-    }
+    pub orders: Vec<TriangleWorkOrder>,
 }
 
 impl Engine {
@@ -66,29 +38,11 @@ impl Engine {
             screen_dimensions: config.resolution,
         };
 
-        let vertices = vec!([0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]);
-
-        let triangles = vec!(
-            TriangleData {
-                vertices: [0, 1, 2],
-                .. Default::default()
-            }
-        );
-
-        let triangle_buffer = TriangleBuffer {
-            vertices,
-            triangles,
-        };
-
-        let buf1 = RwLock::new(triangle_buffer.clone());
-        let buf2 = RwLock::new(triangle_buffer.clone());
-
-        let double_buffer = Arc::new([buf1, buf2]);
+        let orders: Vec<TriangleWorkOrder> = Vec::new();
 
         Ok(Self {
             engine_params,
-            triangle_buffer,
-            double_buffer,
+            orders,
         })
     }
 
@@ -101,21 +55,19 @@ impl Engine {
     }
 
     pub fn start_physics_loop<T: PhysicsLoop + 'static>(
-
         &mut self,
         state: T, tps /* Tick rate per second of loop */: u32,
-        engine_params_sender: mpsc::Sender<EngineParams>,
-        double_buf_sender: mpsc::Sender<DoubleBuffer>,
-
+        order_sender: mpsc::Sender<Vec<TriangleWorkOrder>>,
     ) -> Result<(), LatrError> {
         let mut state = state;
-        let mut write_ready_double_buf = DoubleBuffer::Buf1;
 
         let tick_duration = Duration::from_secs_f64(1f64 / tps as f64);
 
         {
             state.init(self)?;
-            self.send_frame(&mut write_ready_double_buf, &double_buf_sender, &engine_params_sender);
+
+            order_sender.send(self.flush_ret_orders())
+                .expect(EngineError::POISON_ERR);
         }
 
         loop {
@@ -126,7 +78,9 @@ impl Engine {
             // This needs to be nested because borrowing rules and such (it's a mutable reference to self)
             {
                 state.update(self)?;
-                self.send_frame(&mut write_ready_double_buf, &double_buf_sender, &engine_params_sender);
+
+                order_sender.send(self.flush_ret_orders())
+                    .expect(EngineError::POISON_ERR);
             };
 
             //println!("Engine loop time: {:?}", loop_start.elapsed());
@@ -145,27 +99,7 @@ impl Engine {
         }
     }
 
-    // Helper function for physics loop
-    // Sends params and buf index to visual thread
-    fn send_frame(
-        &self,
-        write_tracker: &mut DoubleBuffer,
-        buf_sender: &mpsc::Sender<DoubleBuffer>,
-        params_sender: &mpsc::Sender<EngineParams>,
-    ) {
-        let mut writable_buf = self.double_buffer[write_tracker.to_index()].write()
-            .expect(EngineError::POISON_ERR);
-
-        writable_buf.clone_from(&self.triangle_buffer);
-
-        // We flip it so that it's the opposite of the write buffer, which is the one we want to read from
-        buf_sender.send(write_tracker.get_flip())
-            .expect(EngineError::POISON_ERR);
-
-        // We then actually flip it mutably for the next write
-        write_tracker.flip();
-
-        params_sender.send(self.engine_params)
-            .expect(EngineError::POISON_ERR);
+    fn flush_ret_orders(&mut self) -> Vec<TriangleWorkOrder> {
+        std::mem::take(&mut self.orders)
     }
 }

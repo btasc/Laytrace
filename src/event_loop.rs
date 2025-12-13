@@ -3,7 +3,8 @@ use crate::{
     latr_core::LatrEngine,
     config::LatrConfig,
     engine::{
-        engine_core::{ Engine, DoubleBuffer },
+        engine_core::{ Engine },
+        params::TriangleWorkOrder,
     },
     gpu_utils::gpu_core::GpuCore,
     PhysicsLoop
@@ -15,9 +16,6 @@ use std::{
     sync::{Arc, mpsc},
     thread,
 };
-
-use crate::engine::params::{EngineParams, GpuUniformParams, TriangleBuffer, TriangleData};
-
 pub fn run_event_loop<T: PhysicsLoop + 'static + std::marker::Send>(
     config: LatrConfig,
     engine_core: Engine,
@@ -28,14 +26,9 @@ pub fn run_event_loop<T: PhysicsLoop + 'static + std::marker::Send>(
     tps: Option<u32>,
 ) -> Result<(), LatrError> {
     let tick_rate = tps;
-
-    // Send is moved to engine thread
-    let (engine_send, engine_rec) = mpsc::channel::<EngineParams>();
-    let (double_buf_index_send, double_buf_index_rec) = mpsc::channel::<DoubleBuffer>();
-
-    let triangle_buffer_arc = engine_core.double_buffer.clone();
-
     let mut gpu_core = gpu_core;
+    
+    let (order_sender, order_recv) = mpsc::channel::<Vec<TriangleWorkOrder>>();
 
     match state {
         Some(state) => {
@@ -46,7 +39,7 @@ pub fn run_event_loop<T: PhysicsLoop + 'static + std::marker::Send>(
                 let state = state;
                 let tick_rate = tick_rate.expect("Unreachable: Tick rate is undefined, yet state is. This should not be the case, as they are both passed into start as an option.");
 
-                let engine_res = engine.start_physics_loop(state, tick_rate, engine_send, double_buf_index_send);
+                let engine_res = engine.start_physics_loop(state, tick_rate, order_sender);
             });
         },
         None => (),
@@ -63,42 +56,26 @@ pub fn run_event_loop<T: PhysicsLoop + 'static + std::marker::Send>(
                     }
 
                     winit::event::WindowEvent::RedrawRequested => {
-                        let mut latest_params: Option<EngineParams> = None;
-                        let mut latest_double_buffer: Option<DoubleBuffer> = None;
-
-                        //println!("REDRAW REQUESTED");
-
-                        while let Ok(data) = engine_rec.try_recv() {
-                            latest_params = Some(data);
-                        }
-
-                        while let Ok(data) = double_buf_index_rec.try_recv() {
-                            latest_double_buffer = Some(data);
-                        }
-
-                        if let Some(data) = latest_params {
-                            let gpu_uniform_params = GpuUniformParams::from_engine_params(&data);
-
-                            if let Some(double_buf) = latest_double_buffer {
-                                let index = double_buf.to_index();
-
-                                let triangle_buffer = (*triangle_buffer_arc)[index]
-                                    .read()
-                                    .expect("Physics thread has panicked, ending main thread");
-
-                                let TriangleBuffer {
-                                    vertices: vertices_ref,
-                                    triangles: triangles_ref,
-                                } = &(*triangle_buffer);
-
-                                gpu_core.render(&gpu_uniform_params, vertices_ref, triangles_ref);
+                        // order_recv
+                        
+                        let mut orders: Vec<TriangleWorkOrder> = Vec::new();
+                        
+                        match order_recv.try_recv() {
+                            Ok(data) => {
+                                orders = data;
+                            },
+                            Err(mpsc::TryRecvError::Empty) => {
+                                // If its empty, we dont care and just ignore
+                                // We use the default Vec::new()
+                            },
+                            Err(mpsc::TryRecvError::Disconnected) => {
+                                // Handle the engine thread disconnecting
+                                // For now we do nothing, implement later
+                                // todo!()
                             }
-
-                            //println!("{}", data.camera.pos[0]);
-                        } else {
-                            // Render with old data todo!()
                         }
-
+                        
+                        gpu_core.render(orders);
                         window.request_redraw();
                     }
 

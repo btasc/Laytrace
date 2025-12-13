@@ -208,6 +208,7 @@ pub fn create_transform_compute_bindgroup_layout(
                 binding: 1, // @binding(1)
                 visibility: wgpu::ShaderStages::COMPUTE,
                 ty: wgpu::BindingType::Buffer {
+                    // We only want to read
                     ty: wgpu::BufferBindingType::Storage { read_only: true },
                     has_dynamic_offset: false,
                     // Vec size can change, so i belive this should be false
@@ -223,7 +224,7 @@ pub fn create_transform_compute_bindgroup_layout(
                 binding: 2,
                 visibility: wgpu::ShaderStages::COMPUTE,
                 ty: wgpu::BindingType::Buffer {
-                    // Read only since we just want to read the vertices, not edit them
+                    // Read only on false for editing
                     ty: wgpu::BufferBindingType::Storage { read_only: false },
                     has_dynamic_offset: false,
                     // None because vec size can change
@@ -232,12 +233,10 @@ pub fn create_transform_compute_bindgroup_layout(
                 count: None,
             },
 
-            // 
             wgpu::BindGroupLayoutEntry {
                 binding: 3,
                 visibility: wgpu::ShaderStages::COMPUTE,
                 ty: wgpu::BindingType::Buffer {
-                    // Read only since we just want to read the vertices, not edit them
                     ty: wgpu::BufferBindingType::Storage { read_only: false },
                     has_dynamic_offset: false,
                     // None because vec size can change
@@ -252,8 +251,8 @@ pub fn create_transform_compute_bindgroup_layout(
 pub fn create_transform_compute_bindgroup(
     device: &wgpu::Device,
     compute_bindgroup_layout: &wgpu::BindGroupLayout,
-    screen_texture: &wgpu::TextureView,
-    uniform_buffer: &wgpu::Buffer,
+    uniform_descriptor_buffer: &wgpu::Buffer,
+    order_buffer: &wgpu::Buffer,
     vertex_buffer: &wgpu::Buffer,
     triangle_buffer: &wgpu::Buffer,
 ) -> wgpu::BindGroup {
@@ -263,11 +262,11 @@ pub fn create_transform_compute_bindgroup(
         entries: &[
             wgpu::BindGroupEntry {
                 binding: 0,
-                resource: uniform_buffer.as_entire_binding(),
+                resource: uniform_descriptor_buffer.as_entire_binding(),
             },
             wgpu::BindGroupEntry {
                 binding: 1,
-                resource: wgpu::BindingResource::TextureView(screen_texture),
+                resource: order_buffer.as_entire_binding(),
             },
             wgpu::BindGroupEntry {
                 binding: 2,
@@ -276,7 +275,7 @@ pub fn create_transform_compute_bindgroup(
             wgpu::BindGroupEntry {
                 binding: 3,
                 resource: triangle_buffer.as_entire_binding(),
-            },
+            }
         ]
     });
 
@@ -285,7 +284,6 @@ pub fn create_transform_compute_bindgroup(
 
 pub fn create_transform_compute_buffers(
     device: &wgpu::Device,
-    params: &GpuUniformParams,
 ) -> (wgpu::Buffer, wgpu::Buffer) {
     let uniform_buffer = device.create_buffer(
         &wgpu::BufferDescriptor {
