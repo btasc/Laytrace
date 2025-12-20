@@ -87,9 +87,15 @@ impl GpuCore {
                 label: Some("Main Encoder"),
             });
 
-        // Run transform shader
-        { self.compute_transform_shader.run_compute_pass(
+        // Get the orders loaded into the transform buffer
+        // This also checks for storage buffer size overflow
+        // Since it has &mut gpu access, it'll rebind the bindgroups and buffers
+        self.wright_orders(&orders);
 
+        // Run transform shader
+        // This will update the buffers for the compute shader
+        { self.compute_transform_shader.run_compute_pass(
+            &mut encoder,
         ); };
 
         // Run compute raytracer
@@ -118,28 +124,7 @@ impl GpuCore {
         Ok(())
     }
 
-    pub fn wright_buffers(
-        &self,
-        uniform_params: &GpuUniformParams,
-        vertices: &Vec<[f32; 3]>,
-        triangle_data: &Vec<TriangleData>,
-    ) {
-        self.queue.write_buffer(
-            &self.compute_raytrace_shader.uniform_buffer,
-            0,
-            bytemuck::cast_slice(&[*uniform_params]),
-        );
-
-        self.queue.write_buffer(
-            &self.compute_raytrace_shader.vertex_buffer,
-            0,
-            bytemuck::cast_slice(vertices),
-        );
-
-        self.queue.write_buffer(
-            &self.compute_raytrace_shader.triangle_buffer,
-            0,
-            bytemuck::cast_slice(triangle_data),
-        );
+    pub fn wright_orders(&mut self, orders: &Vec<TriangleWorkOrder>) {
+        
     }
 }

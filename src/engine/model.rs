@@ -18,6 +18,14 @@ impl Model {
         }
     }
 
+    pub fn from_raw(vertices: Vec<f32>, triangles: Vec<[u32; 3]>) -> Self {
+        let mut model = Self::new();
+        model.vertices = vertices;
+        model.triangles = triangles;
+
+        model
+    }
+
     pub fn from_obj(path: std::path::PathBuf) -> Self {
         // https://docs.rs/tobj/latest/tobj/
         let tobj_model = tobj::load_obj(path, &tobj::GPU_LOAD_OPTIONS);

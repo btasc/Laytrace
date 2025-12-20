@@ -1,8 +1,5 @@
 use wgpu::BindGroup;
-use crate::engine::params::{
-    GpuUniformParams,
-    TriangleData
-};
+use crate::engine::params::{GpuUniformParams, TriangleData, TriangleWorkOrder};
 
 use super::bind_groups::{
     create_raytrace_compute_buffers,
@@ -63,6 +60,20 @@ impl ComputeTransformShader {
             uniform_descriptor_buffer,
             order_buffer,
         }
+    }
+
+    pub fn run_compute_pass(&self, encoder: &mut wgpu::CommandEncoder) {
+        let mut compute_pass =
+            encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
+                label: Some("Transform Compute Pass"),
+                timestamp_writes: None,
+            });
+
+        compute_pass.set_pipeline(&self.pipeline);
+        compute_pass.set_bind_group(0, &self.bindgroup, &[]);
+
+        let workgroup_x = (1 + 7) / 8;
+        compute_pass.dispatch_workgroups(workgroup_x, 1, 1);
     }
 }
 
