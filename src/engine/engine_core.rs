@@ -27,8 +27,7 @@ pub trait PhysicsLoop {
 // These return LatrErrors as the user will run most physics operations through the LatrEngine api
 // This way the user doesn't have to be like "engine.engine.run_op", and doesn't have to deal with EngineError vs LatrError
 pub struct Engine {
-    pub engine_params: EngineParams,
-    pub orders: Vec<TriangleWorkOrder>,
+    pub cam: EngineParams,
 }
 
 impl Engine {

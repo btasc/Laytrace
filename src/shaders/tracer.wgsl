@@ -1,16 +1,6 @@
-
 // Right now this file is in progress
 // It just writes to the texture as red for every pixel
 // I have it as red because that way I can know that it works
-
-
-struct UniformParams {
-    camera_pos: vec3<f32>,
-    camera_up: vec3<f32>,
-    camera_right: vec3<f32>,
-    camera_forward: vec3<f32>,
-    screen_dims: vec3<f32>,
-}
 
 struct Ray {
     // Position in x, y, z
@@ -28,9 +18,6 @@ fn default_ray() -> Ray {
 
     return ray;
 }
-
-@group(0) @binding(0)
-var<uniform> uniform_params: UniformParams;
 
 @group(0) @binding(1)
 var output_texture: texture_storage_2d<rgba8unorm, write>;

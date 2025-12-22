@@ -1,6 +1,6 @@
 mod error;
 mod engine;
-mod gpu_utils;
+mod gpu;
 mod event_loop;
 mod latr_core;
 mod config;

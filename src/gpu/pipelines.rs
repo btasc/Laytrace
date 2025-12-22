@@ -3,8 +3,6 @@ pub const RAYTRACE_COMPUTE_WGSL: &'static str = concat!(
     include_str!("../shaders/collision.wgsl"),
 );
 
-pub const TRANSFORM_COMPUTE_WGSL: &'static str = include_str!("../shaders/transform.wgsl");
-
 pub const RENDER_WGSL: &'static str = include_str!("../shaders/blit.wgsl");
 
 pub fn create_render_pipeline(

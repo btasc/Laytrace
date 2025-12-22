@@ -47,19 +47,19 @@ Example:
 TlasNode : { index: 1 } -> TlasBuffer[1] && TlasBuffer[2]
 ```
 
-## Model data
+## Mesh data
 
 Note:  
-	There used to be another storage buffer that held the mesh, however eventually all of its components were abstracted out. Now, the instance model directly holds the BLAS entry point, and the BLAS leaves hold the references to the triangles of the mesh.
+	There used to be another storage buffer that held the mesh, however eventually all of its components were abstracted out. Now, the instance mesh directly holds the BLAS entry point, and the BLAS leaves hold the references to the triangles of the mesh.
 
-#### instance\_model\_buffer: Vec\<GpuStorageInstanceModel\>
+#### instance\_mesh\_buffer: Vec\<GpuStorageInstanceMesh\>
 
-- Buffer that holds individual instances of some model  
-- References back to a BLAS entry point, from which can be traversed to get the rest of the model data. The inverse transformation matrix is used to move the ray to the local space of the model
+- Buffer that holds individual instances of some mesh  
+- References back to a BLAS entry point, from which can be traversed to get the rest of the mesh data. The inverse transformation matrix is used to move the ray to the local space of the mesh
 
 ```rust
-struct GpuStorageInstanceModel {
-	// Inverse of the matrix that transforms the origin model to the world model
+struct GpuStorageInstanceMesh {
+	// Inverse of the matrix that transforms the origin mesh to the mesh / entry to the BLAS
 	// We precalculate the inverse on the cpu as to not waste gpu resources
 	inverse_transformation_matrix: [f32; 16],
 
@@ -129,9 +129,9 @@ struct GpuStorageTlasNode {
 
 #### blas\_tree\_buffer: Vec\<GpuStorageBlasTreeNode\>
 
-- Holds a local BVH tree for each model.   
+- Holds a local BVH tree for each mesh.   
 - The child\_node is an i32. If its negative minus 1, its the index of a leaf, if its positive, its the index of a branch  
-- **\! Reference the instance model to find the starting node**
+- **\! Reference the instance mesh to find the starting node**
 
 ```rust
 struct GpuStorageBlasTreeNode{
@@ -150,7 +150,7 @@ struct GpuStorageBlasTreeNode{
 
 #### blas\_leaf\_buffer: Vec\<GpuStorageBlasLeafNode\>
 
-- Holds a local leaf with 8 triangles for the origin model
+- Holds a local leaf with 8 triangles for the origin mesh
 
 ```rust
 struct GpuStorageBlasLeafNode {
@@ -166,13 +166,9 @@ struct GpuStorageBlasLeafNode {
 }
 ```
 
-Note: Eventually, I plan to implement a buffer / compute shader system for transforming the world models, but for now that is still handled on the cpu manually.
+Note: Eventually, I plan to implement a buffer / compute shader system for transforming the instance meshes, but for now that is still handled on the cpu manually.
 
 ## Rendering Buffers
-
-#### screen\_texture\_buffer 
-
-- Buffer that holds the final texture view that is written to from the ray tracing shader. Read from during the blit shader where its put on the screen
 
 #### camera\_uniform\_buffer: GpuUniformCamera
 
