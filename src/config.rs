@@ -44,9 +44,6 @@ pub enum RunMode {
     // Does still have the gpu and everything that comes with it, just no winit
     // Gpu writes to nothing
     NoWinit,
-
-    // Headless is a mode that removes the gpu, and just runs the engine and phys loop
-    Headless,
 }
 
 // All this code is here as it technically relates to a config, even though its used on engine

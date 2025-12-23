@@ -171,8 +171,17 @@ struct GpuStorageBlasLeafNode {
 #[repr(C, align(16))]
 #[derive(Clone, Copy, Pod, Zeroable)]
 pub struct GpuUniformCamera {
-    pos: [f32; 3],
+    pub pos: [f32; 3],
     _pad: u32,
 
 	// TBD on what will be included here yet, the coordinate system still has to be fleshed out a bit 
+}
+
+impl Default for GpuUniformCamera {
+    fn default() -> Self {
+        Self {
+            pos: [0.0, 0.0, 0.0],
+            _pad: 0,
+        }
+    }
 }

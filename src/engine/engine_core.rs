@@ -1,14 +1,7 @@
 use crate::{
     error::{EngineError, LatrError},
     config::LatrConfig,
-};
-
-use super::{
-    params::{
-        EngineParams,
-        EngineCamera,
-        TriangleWorkOrder,
-    },
+    gpu::buffers::GpuUniformCamera,
 };
 
 use std::{
@@ -17,36 +10,28 @@ use std::{
 };
 
 use std::sync::mpsc;
-use crate::engine::params::TriangleBuffer;
 
 pub trait PhysicsLoop {
     fn init(&mut self, en: &mut Engine) -> Result<(), LatrError>;
     fn update(&mut self, en: &mut Engine) -> Result<(), LatrError>;
 }
 
-// These return LatrErrors as the user will run most physics operations through the LatrEngine api
-// This way the user doesn't have to be like "engine.engine.run_op", and doesn't have to deal with EngineError vs LatrError
+// Methods open to the user return LatrErrors, methods only exposed to the engine return engine errors
 pub struct Engine {
-    pub cam: EngineParams,
+    pub gpu_cam: GpuUniformCamera,
 }
 
 impl Engine {
     pub fn new(config: &LatrConfig) -> Result<Self, EngineError> {
-        let engine_params = EngineParams {
-            camera: EngineCamera::default(),
-            screen_dimensions: config.resolution,
-        };
-
-        let orders: Vec<TriangleWorkOrder> = Vec::new();
+        let gpu_cam: GpuUniformCamera = GpuUniformCamera::default();
 
         Ok(Self {
-            engine_params,
-            orders,
+            gpu_cam,
         })
     }
 
     pub fn move_camera(&mut self, dx: f32, dy: f32, dz: f32) {
-        let pos = &mut self.engine_params.camera.pos;
+        let pos = &mut self.gpu_cam.pos;
 
         pos[0] += dx;
         pos[1] += dy;

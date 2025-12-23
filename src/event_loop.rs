@@ -16,6 +16,7 @@ use std::{
     sync::{Arc, mpsc},
     thread,
 };
+
 pub fn run_event_loop<T: PhysicsLoop + 'static + std::marker::Send>(
     config: LatrConfig,
     engine_core: Engine,
