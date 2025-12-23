@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
-use crate::{config::LatrConfig, error::GpuError, engine::params::GpuUniformParams, LatrError};
-use crate::engine::params::{TriangleData, TriangleWorkOrder};
+use crate::{config::LatrConfig, error::GpuError, LatrError};
 
 use super::init_utils::{
     make_device_queue_surface_config,
@@ -12,14 +11,12 @@ use super::init_utils::{
 use super::shaders::{
     ComputeRaytraceShader,
     RenderShader,
-    ComputeTransformShader,
 };
 
+use super::buffers::GpuBuffers;
 
 pub struct GpuCore {
     compute_raytrace_shader: ComputeRaytraceShader,
-    compute_transform_shader: ComputeTransformShader,
-
     render_shader: RenderShader,
 
     pub device: wgpu::Device,
@@ -33,7 +30,6 @@ impl GpuCore {
     pub fn new(window: Arc<winit::window::Window>, ) -> Result<Self, GpuError> {
         
         let (device, queue, surface, config) = make_device_queue_surface_config(window.clone())?;
-
         let (width, height) = window.inner_size().into();
 
         // Since we only want a 2d one, we just do width and height with the z axis as 1
@@ -43,29 +39,25 @@ impl GpuCore {
         // This is our main screen texture that is written to and read from throughout our program
         let screen_texture = create_screen_texture(&device, texture_size);
         let screen_texture_view = screen_texture.create_view(&wgpu::TextureViewDescriptor::default());
+        
+        let buffers = GpuBuffers::new(&device);
 
         let compute_raytrace_shader = ComputeRaytraceShader::new(
             &device,
-            &screen_texture_view
-        );
-
-        let compute_transform_shader = ComputeTransformShader::new(
-            &device,
-            &compute_raytrace_shader.vertex_buffer,
-            &compute_raytrace_shader.triangle_buffer,
+            &buffers,
+            &screen_texture_view,
         );
 
         let render_shader = RenderShader::new(
             &device,
+
+            // We pass these in as owned
             screen_texture_view,
-            &sampler,
-            &config
+            sampler,
         );
 
         Ok(Self {
             compute_raytrace_shader,
-            compute_transform_shader,
-
             render_shader,
             
             device, queue,
@@ -73,7 +65,7 @@ impl GpuCore {
         })
     }
 
-    pub fn render(&mut self, orders: Vec<TriangleWorkOrder>) -> Result<(), GpuError> {
+    pub fn render(&mut self) -> Result<(), GpuError> {
         let output = self.surface.get_current_texture()?;
 
         let output_texture_view = output
@@ -86,17 +78,6 @@ impl GpuCore {
             .create_command_encoder(&wgpu::CommandEncoderDescriptor {
                 label: Some("Main Encoder"),
             });
-
-        // Get the orders loaded into the transform buffer
-        // This also checks for storage buffer size overflow
-        // Since it has &mut gpu access, it'll rebind the bindgroups and buffers
-        self.wright_orders(&orders);
-
-        // Run transform shader
-        // This will update the buffers for the compute shader
-        { self.compute_transform_shader.run_compute_pass(
-            &mut encoder,
-        ); };
 
         // Run compute raytracer
         { self.compute_raytrace_shader.run_compute_pass(

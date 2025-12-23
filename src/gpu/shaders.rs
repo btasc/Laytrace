@@ -4,6 +4,11 @@ use super::pipelines::{
     create_transform_compute_pipeline,
 };
 
+use super::bindgroups::{
+    create_raytrace_bindgroup_layout,
+    create_raytrace_bindgroup,
+}
+
 use super::buffers::GpuBuffers;
 
 pub struct ComputeRaytraceShader {
@@ -15,9 +20,19 @@ pub struct ComputeRaytraceShader {
 impl ComputeRaytraceShader {
     pub fn new(
         device: &wgpu::Device,
+        buffers: &GpuBuffers,
         screen_texture_view: &wgpu::TextureView,
     ) -> Self {
-        let compute_pipeline = create_raytrace_compute_pipeline(&device, &bindgroup_layout);
+        let bindgroup_layout = create_raytrace_bindgroup_layout(&device);
+
+        let bindgroup = create_raytrace_bindgroup(
+            &device,
+            &buffers,
+            &screen_texture_view,
+            &bindgroup_layout,
+        );
+
+        let pipeline = create_raytrace_compute_pipeline(&device, &bindgroup_layout);
 
         Self {
             pipeline,
@@ -52,21 +67,28 @@ impl ComputeRaytraceShader {
 pub struct RenderShader {
     pub pipeline: wgpu::RenderPipeline,
     pub bindgroup: wgpu::BindGroup,
+
     pub screen_texture_view: wgpu::TextureView,
+    pub sampler: wgpu::Sampler,
 }
 
 impl RenderShader {
-    pub fn new(device: &wgpu::Device, screen_texture_view: wgpu::TextureView, sampler: &wgpu::Sampler, surface_config: &wgpu::SurfaceConfiguration) -> Self {
+    pub fn new(
+        device: &wgpu::Device, 
+        screen_texture_view: wgpu::TextureView, 
+        sampler: wgpu::Sampler, 
+        surface_config: &wgpu::SurfaceConfiguration
+    ) -> Self {
         let render_bindgroup_layout = create_render_bindgroup_layout(&device);
         let render_bindgroup = create_render_bindgroup(&device, &render_bindgroup_layout, &screen_texture_view, &sampler);
 
         let render_pipeline = create_render_pipeline(&device, &surface_config, &render_bindgroup_layout);
 
-
         Self {
             bindgroup: render_bindgroup,
             pipeline: render_pipeline,
             screen_texture_view,
+            sampler,
         }
     }
 

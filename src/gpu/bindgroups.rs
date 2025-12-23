@@ -111,3 +111,51 @@ pub fn create_raytrace_bindgroup(
         ],
     })
 }
+
+pub fn create_render_bindgroup_layout(device: &wgpu::Device) -> wgpu::BindGroupLayout {
+    device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+        label: Some("Render Bindgroup Layout"),
+        entries: &[
+            // Texture view
+            wgpu::BindGrouplayoutEntry {
+                binding: 0,
+                visibility: wgpu::ShaderStages::FRAGMENT,
+                ty: wgpu::BindingType::Texture {
+                    sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                    view_dimension: wgpu::TextureViewDimension::D2,
+                    multisampled: false,
+                },
+            },
+
+            // Sampler for the texture
+            wgpu::BindGrouplayoutEntry {
+                binding: 1,
+                visibility: wgpu::ShaderStages::FRAGMENT,
+                ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                cout: None,
+            },
+        ],
+    })
+}
+
+pub fn create_render_bindgroup(
+    device: &wgpu::Device,
+    bindgroup_layout: &wgpu::BindGroupLayout,
+    screen_texture_view: &wgpu::TextureView,
+    sampler: &wgpu::Sampler,
+) -> wgpu::BindGroup {
+    device.create_bind_group(&wgpu::BindGroupDescriptor {
+        label: Some("Render Bind Group"),
+        layout: &bindgroup_layout,
+        entries: &[
+            wgpu::BindGroupEntry {
+                binding: 0,
+                resource: wgpu::BindingResource::TextureView(screen_texture_view),
+            },
+            wgpu::BindGroupEntry {
+                binding: 1,
+                resource: wgpu::BindingResource::Sampler(sampler),
+            },
+        ],
+    })
+}
