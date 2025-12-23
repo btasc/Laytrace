@@ -1,15 +1,6 @@
 use bytemuck::{Pod, Zeroable};
 use std::mem::size_of;
 
-/*let triangle_order_buffer = device.create_buffer(
-    &wgpu::BufferDescriptor {
-        label: Some("Transform Order Buffer"),
-        size: 1024,
-        usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
-        mapped_at_creation: false,
-    }
-);*/
-
 pub struct GpuBuffers {
     // Model data
     instance_mesh_buffer: wgpu::Buffer,
@@ -179,7 +170,7 @@ struct GpuStorageBlasLeafNode {
 // Uniforms have to be multiples of 16, so we align 16
 #[repr(C, align(16))]
 #[derive(Clone, Copy, Pod, Zeroable)]
-struct GpuUniformCamera {
+pub struct GpuUniformCamera {
     pos: [f32; 3],
     _pad: u32,
 

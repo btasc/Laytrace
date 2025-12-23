@@ -55,7 +55,7 @@ pub fn make_device_queue_surface_config(window_arc: Arc<winit::window::Window>) 
 // Creates the texture we write to with the compute shader and read from the fragment shader
 // Important constants
     // Texture format that we're using for the screen texture
-    const TEXTURE_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8Unorm;
+    pub const TEXTURE_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8Unorm;
 
 pub fn create_screen_texture(device: &wgpu::Device, texture_size: wgpu::Extent3d) -> wgpu::Texture {
     device.create_texture(&wgpu::TextureDescriptor {
