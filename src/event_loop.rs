@@ -1,12 +1,10 @@
 use crate::{
     error::{LatrError, WindowError},
-    latr_core::LatrEngine,
     config::LatrConfig,
     engine::{
         engine_core::{ Engine },
-        params::TriangleWorkOrder,
     },
-    gpu_utils::gpu_core::GpuCore,
+    gpu::gpu_core::GpuCore,
     PhysicsLoop
 };
 
@@ -28,8 +26,6 @@ pub fn run_event_loop<T: PhysicsLoop + 'static + std::marker::Send>(
 ) -> Result<(), LatrError> {
     let tick_rate = tps;
     let mut gpu_core = gpu_core;
-    
-    let (order_sender, order_recv) = mpsc::channel::<Vec<TriangleWorkOrder>>();
 
     match state {
         Some(state) => {
@@ -39,8 +35,6 @@ pub fn run_event_loop<T: PhysicsLoop + 'static + std::marker::Send>(
                 let mut engine = engine_core;
                 let state = state;
                 let tick_rate = tick_rate.expect("Unreachable: Tick rate is undefined, yet state is. This should not be the case, as they are both passed into start as an option.");
-
-                let engine_res = engine.start_physics_loop(state, tick_rate, order_sender);
             });
         },
         None => (),
@@ -57,26 +51,8 @@ pub fn run_event_loop<T: PhysicsLoop + 'static + std::marker::Send>(
                     }
 
                     winit::event::WindowEvent::RedrawRequested => {
-                        // order_recv
-                        
-                        let mut orders: Vec<TriangleWorkOrder> = Vec::new();
-                        
-                        match order_recv.try_recv() {
-                            Ok(data) => {
-                                orders = data;
-                            },
-                            Err(mpsc::TryRecvError::Empty) => {
-                                // If its empty, we dont care and just ignore
-                                // We use the default Vec::new()
-                            },
-                            Err(mpsc::TryRecvError::Disconnected) => {
-                                // Handle the engine thread disconnecting
-                                // For now we do nothing, implement later
-                                // todo!()
-                            }
-                        }
-                        
-                        gpu_core.render(orders);
+
+                        gpu_core.render();
                         window.request_redraw();
                     }
 

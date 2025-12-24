@@ -3,4 +3,4 @@ mod init_utils;
 mod pipelines;
 mod bindgroups;
 mod shaders;
-mod buffers;
+pub(crate) mod buffers;

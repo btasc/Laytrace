@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::{config::LatrConfig, error::GpuError, LatrError};
+use crate::{error::GpuError, LatrError};
 
 use super::init_utils::{
     make_device_queue_surface_config,
@@ -18,6 +18,9 @@ use super::buffers::GpuBuffers;
 pub struct GpuCore {
     compute_raytrace_shader: ComputeRaytraceShader,
     render_shader: RenderShader,
+
+    buffers: GpuBuffers,
+    window_dimensions: (u32, u32),
 
     pub device: wgpu::Device,
     pub queue: wgpu::Queue,
@@ -54,11 +57,16 @@ impl GpuCore {
             // We pass these in as owned
             screen_texture_view,
             sampler,
+
+            &config,
         );
 
         Ok(Self {
             compute_raytrace_shader,
             render_shader,
+
+            buffers,
+            window_dimensions: (width, height),
             
             device, queue,
             surface, config,
@@ -82,8 +90,9 @@ impl GpuCore {
         // Run compute raytracer
         { self.compute_raytrace_shader.run_compute_pass(
             &mut encoder,
-            self.config.width,
-            self.config.height
+            &self.buffers,
+            self.window_dimensions.0,
+            self.window_dimensions.1,
         ); };
 
         // The compute pass is now recorded in the encoder.
@@ -103,9 +112,5 @@ impl GpuCore {
         output.present();
 
         Ok(())
-    }
-
-    pub fn wright_orders(&mut self, orders: &Vec<TriangleWorkOrder>) {
-        
     }
 }

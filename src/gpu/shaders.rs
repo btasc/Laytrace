@@ -1,13 +1,14 @@
 use super::pipelines::{
     create_raytrace_compute_pipeline,
     create_render_pipeline,
-    create_transform_compute_pipeline,
 };
 
 use super::bindgroups::{
     create_raytrace_bindgroup_layout,
     create_raytrace_bindgroup,
-}
+    create_render_bindgroup_layout,
+    create_render_bindgroup,
+};
 
 use super::buffers::GpuBuffers;
 

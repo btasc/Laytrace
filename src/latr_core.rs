@@ -2,15 +2,13 @@ use crate::{
     error::{LatrError, WindowError, }, 
     config::LatrConfig, 
     engine::{
-        engine_core::Engine,
-        params::GpuUniformParams,
+        engine_core::{ Engine, PhysicsLoop },
     }, 
-    gpu_utils::gpu_core::GpuCore, event_loop::run_event_loop, PhysicsLoop
+    gpu::gpu_core::GpuCore, 
+    event_loop::run_event_loop, 
 };
 
 use std::sync::Arc;
-use wgpu::naga::VectorSize::Tri;
-use crate::engine::params::TriangleData;
 
 pub struct LatrEngine {
     config: LatrConfig,
@@ -32,6 +30,7 @@ impl LatrEngine {
             event_loop,
         } = self;
 
+        // tps = ticks per second
         let (mut state, mut tps) = (None, None);
 
         match state_tps_op {
@@ -59,8 +58,6 @@ impl LatrEngine {
         let (window, event_loop) = Self::make_window_event_loop(latr_config.resolution)?;
 
         let engine_core = Engine::new(&latr_config)?;
-
-        let gpu_params = GpuUniformParams::from_engine_params(&engine_core.engine_params);
         
         let gpu_core = GpuCore::new(
             window.clone(),

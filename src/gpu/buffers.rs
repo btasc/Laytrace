@@ -3,48 +3,48 @@ use std::mem::size_of;
 
 pub struct GpuBuffers {
     // Model data
-    instance_mesh_buffer: wgpu::Buffer,
-    triangle_data_buffer: wgpu::Buffer,
-    vertex_buffer: wgpu::Buffer,
+    pub(crate) instance_mesh_buffer: wgpu::Buffer,
+    pub(crate) triangle_data_buffer: wgpu::Buffer,
+    pub(crate) vertex_buffer: wgpu::Buffer,
 
     // BVH data
-    tlas_buffer: wgpu::Buffer,
-    blas_tree_buffer: wgpu::Buffer,
-    blas_leaf_buffer: wgpu::Buffer,
+    pub(crate) tlas_buffer: wgpu::Buffer,
+    pub(crate) blas_tree_buffer: wgpu::Buffer,
+    pub(crate) blas_leaf_buffer: wgpu::Buffer,
 
     // Rendering data
-    camera_uniform_buffer: wgpu::Buffer,
+    pub(crate) camera_uniform_buffer: wgpu::Buffer,
 }
 
 impl GpuBuffers {
-    pub fn init(device: &wgpu::Device) -> Self {
+    pub fn new(device: &wgpu::Device) -> Self {
         let instance_mesh_buffer = Self::create_storage_buffer(
-            &device, size_of<GpuStorageInstanceMesh>() as u64, "Instance Mesh Storage Buffer"
+            &device, size_of::<GpuStorageInstanceMesh>() as u64, "Instance Mesh Storage Buffer"
         );
 
         let triangle_data_buffer = Self::create_storage_buffer(
-            &device, size_of<GpuStorageTriangleData>() as u64, "Triangle Data Storage Buffer"
+            &device, size_of::<GpuStorageTriangleData>() as u64, "Triangle Data Storage Buffer"
         );
 
         let vertex_buffer = Self::create_storage_buffer(
-            &device, size_of<GpuStorageVertex>() as u64, "Vertex Storage Buffer"
+            &device, size_of::<GpuStorageVertex>() as u64, "Vertex Storage Buffer"
         );
 
         let tlas_buffer = Self::create_storage_buffer(
-            &device, size_of<GpuStorageTlasNode>() as u64, "TLAS Storage Buffer"
+            &device, size_of::<GpuStorageTlasNode>() as u64, "TLAS Storage Buffer"
         );
 
         let blas_tree_buffer = Self::create_storage_buffer(
-            &device, size_of<GpuStorageBlasTreeNode>() as u64, "BLAS Tree Storage Buffer"
+            &device, size_of::<GpuStorageBlasTreeNode>() as u64, "BLAS Tree Storage Buffer"
         );
 
         let blas_leaf_buffer = Self::create_storage_buffer(
-            &device, size_of<GpuStorageBlasLeafNode>() as u64, "BLAS Leaf Storage Buffer"
+            &device, size_of::<GpuStorageBlasLeafNode>() as u64, "BLAS Leaf Storage Buffer"
         );
 
         let camera_uniform_buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("Camera Uniform Buffer"),
-            size: size_of<GpuUniformCamera>() as u64,
+            size: size_of::<GpuUniformCamera>() as u64,
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });

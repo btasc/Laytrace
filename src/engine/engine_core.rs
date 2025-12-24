@@ -9,8 +9,6 @@ use std::{
     thread,
 };
 
-use std::sync::mpsc;
-
 pub trait PhysicsLoop {
     fn init(&mut self, en: &mut Engine) -> Result<(), LatrError>;
     fn update(&mut self, en: &mut Engine) -> Result<(), LatrError>;
@@ -40,8 +38,8 @@ impl Engine {
 
     pub fn start_physics_loop<T: PhysicsLoop + 'static>(
         &mut self,
-        state: T, tps /* Tick rate per second of loop */: u32,
-        order_sender: mpsc::Sender<Vec<TriangleWorkOrder>>,
+        state: T,
+        tps /* Tick rate per second of loop */: u32,
     ) -> Result<(), LatrError> {
         let mut state = state;
 
@@ -49,9 +47,6 @@ impl Engine {
 
         {
             state.init(self)?;
-
-            order_sender.send(self.flush_ret_orders())
-                .expect(EngineError::POISON_ERR);
         }
 
         loop {
@@ -62,9 +57,6 @@ impl Engine {
             // This needs to be nested because borrowing rules and such (it's a mutable reference to self)
             {
                 state.update(self)?;
-
-                order_sender.send(self.flush_ret_orders())
-                    .expect(EngineError::POISON_ERR);
             };
 
             //println!("Engine loop time: {:?}", loop_start.elapsed());
@@ -81,9 +73,5 @@ impl Engine {
                 None => println!("Lag"),
             }
         }
-    }
-
-    fn flush_ret_orders(&mut self) -> Vec<TriangleWorkOrder> {
-        std::mem::take(&mut self.orders)
     }
 }
