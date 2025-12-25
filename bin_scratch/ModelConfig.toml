@@ -1,9 +1,4 @@
 [directories]
 model_folders = [
-    "./dirone/subdir",
-    "./dirone/anothersubdir"
+    "models",
 ]
-
-[[models]]
-name = "Explicit model"
-path = "./dirone/moresubdirs/square.obj"

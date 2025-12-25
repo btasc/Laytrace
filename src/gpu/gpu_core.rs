@@ -19,7 +19,7 @@ pub struct GpuCore {
     compute_raytrace_shader: ComputeRaytraceShader,
     render_shader: RenderShader,
 
-    buffers: GpuBuffers,
+    pub(crate) buffers: GpuBuffers,
     window_dimensions: (u32, u32),
 
     pub device: wgpu::Device,

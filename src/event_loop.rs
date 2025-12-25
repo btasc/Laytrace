@@ -3,6 +3,7 @@ use crate::{
     config::LatrConfig,
     engine::{
         engine_core::{ Engine },
+        bvh::build_write_bvh,
     },
     gpu::gpu_core::GpuCore,
     PhysicsLoop
@@ -12,8 +13,11 @@ use winit::event_loop::EventLoopWindowTarget;
 
 use std::{
     sync::{Arc, mpsc},
+    cell::RefCell,
+    rc::Rc,
     thread,
 };
+use wgpu::wgc::command::bundle_ffi::wgpu_render_bundle_insert_debug_marker;
 
 pub fn run_event_loop<T: PhysicsLoop + 'static + std::marker::Send>(
     config: LatrConfig,
@@ -21,24 +25,45 @@ pub fn run_event_loop<T: PhysicsLoop + 'static + std::marker::Send>(
     gpu_core: GpuCore,
     window: Arc<winit::window::Window>,
     event_loop: winit::event_loop::EventLoop<()>,
-    state: Option<T>,
-    tps: Option<u32>,
+    state_tps_op: Option<(T, u32)>,
 ) -> Result<(), LatrError> {
-    let tick_rate = tps;
     let mut gpu_core = gpu_core;
 
-    match state {
-        Some(state) => {
-            // Never returns unless there's an error
-            // Uses mpsc to message an error if it happens
-            thread::spawn(move || {
-                let mut engine = engine_core;
-                let state = state;
-                let tick_rate = tick_rate.expect("Unreachable: Tick rate is undefined, yet state is. This should not be the case, as they are both passed into start as an option.");
-            });
-        },
-        None => (),
-    }
+    // Since event_loop.run returns an event loop err, to get a LatrErr, we need to store it somewhere
+    // We use an Rc RefCell to be able to update the error if it occurs
+    let gpu_err: Rc<RefCell<Option<LatrError>>> = Rc::new(RefCell::new(None));
+    let gpu_err_clone = gpu_err.clone();
+
+    // Now we spawn the secondary thread
+    // This thread will first build the bvh, then run the engine
+    // We also clone our buffers as to let both threads update them
+    // Wgpu handles this very helpfully and treats a wgpu::Buffer as atomically ref counted (At least I believe so)
+    let secondary_buffers = gpu_core.buffers.clone();
+    let secondary_queue = gpu_core.queue.clone();
+
+    let secondary_config = config.clone();
+
+    let secondary_thread = thread::spawn(move || {
+        // Move these explicitly
+        let mut secondary_buffers = secondary_buffers;
+        let mut secondary_queue = secondary_queue;
+
+        let secondary_config = secondary_config;
+        let mut engine = engine_core;
+        
+        let state_tps_op = state_tps_op;
+
+        // Run our first bvh task
+        { build_write_bvh(secondary_config.model_file, &mut secondary_buffers, &mut secondary_queue); };
+
+        // After that is done, we run our engine
+        match state_tps_op {
+            Some((state, tps)) => {
+                engine.start_physics_loop(state, tps, &mut secondary_buffers, &mut secondary_queue);
+            },
+            None => (),
+        }
+    });
 
     let render_res = event_loop.run(move |event, elwt: &EventLoopWindowTarget<()>| {
         match event {
@@ -52,7 +77,14 @@ pub fn run_event_loop<T: PhysicsLoop + 'static + std::marker::Send>(
 
                     winit::event::WindowEvent::RedrawRequested => {
 
-                        gpu_core.render();
+                        match gpu_core.render() {
+                            Ok(_) => {},
+                            Err(e) => {
+                                *gpu_err_clone.borrow_mut() = Some(LatrError::Gpu(e));
+                                elwt.exit();
+                            }
+                        };
+
                         window.request_redraw();
                     }
 
@@ -62,6 +94,12 @@ pub fn run_event_loop<T: PhysicsLoop + 'static + std::marker::Send>(
             _ => ()
         }
     });
+
+    if let Ok(err_cell) = Rc::try_unwrap(gpu_err) {
+        if let Some(gpu_err) = err_cell.into_inner() {
+            return Err(gpu_err);
+        }
+    }
 
     match render_res {
         Ok(()) => Ok(()),

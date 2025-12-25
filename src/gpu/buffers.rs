@@ -1,6 +1,8 @@
 use bytemuck::{Pod, Zeroable};
 use std::mem::size_of;
 
+// Since wgpu::Buffer is a ref count, we can just derive clone
+#[derive(Clone)]
 pub struct GpuBuffers {
     // Model data
     pub(crate) instance_mesh_buffer: wgpu::Buffer,
@@ -138,32 +140,32 @@ struct GpuStorageTlasNode {
 // BLAS Tree Buffer
 #[repr(C)]
 #[derive(Clone, Copy, Pod, Zeroable)]
-struct GpuStorageBlasTreeNode{
+pub struct GpuStorageBlasTreeNode{
 	// Two bounds for the box
-	min_bound: [f32; 3],
+	pub min_bound: [f32; 3],
 
 	// See note 2
-	_pad: u32,
+	pub _pad: u32,
 
-	max_bound: [f32; 3],
+	pub max_bound: [f32; 3],
 	
 	// See note 1 and note 3. Positive leads to another node, negative leads to a leaf
-	node_or_leaf: i32,
+	pub node_or_leaf: i32,
 }
 
 // BLAS Leaf Buffer
 #[repr(C)]
 #[derive(Clone, Copy, Pod, Zeroable)]
-struct GpuStorageBlasLeafNode {
+pub struct GpuStorageBlasLeafNode {
 	// Indices for the 8 triangles in the box
-	triangles: [u32; 8],
+	pub triangles: [u32; 8],
 
 	// Triangle count, 0-8
 	// If triangle count is less than 8, assume all triangles past are junk
-	triangle_count: u32,
+	pub triangle_count: u32,
 
 	// Note 2
-	_pad: [u32; 3],
+	pub _pad: [u32; 3],
 }
 
 // Camera Uniform Buffer

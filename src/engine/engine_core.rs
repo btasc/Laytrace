@@ -8,6 +8,7 @@ use std::{
     time::{Instant, Duration},
     thread,
 };
+use crate::gpu::buffers::GpuBuffers;
 
 pub trait PhysicsLoop {
     fn init(&mut self, en: &mut Engine) -> Result<(), LatrError>;
@@ -40,6 +41,8 @@ impl Engine {
         &mut self,
         state: T,
         tps /* Tick rate per second of loop */: u32,
+        buffers: &mut GpuBuffers,
+        queue: &mut wgpu::Queue,
     ) -> Result<(), LatrError> {
         let mut state = state;
 

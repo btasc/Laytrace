@@ -2,10 +2,12 @@
 use latr::{ LatrEngine, LatrConfig, Engine, PhysicsLoop };
 
 fn main() -> Result<(), latr::LatrError> {
-    let config = LatrConfig {
+    let mut config = LatrConfig {
         resolution: (1920u32, 1080u32),
         ..Default::default()
     };
+    
+    config.attach_models("./ModelConfig.toml");
 
     let state = SimState {
         x: "hello!",

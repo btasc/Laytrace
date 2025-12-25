@@ -11,11 +11,24 @@ use crate::{
 // Config that specifies all settings for running
 // Has default implemented so you can just select a few things
 // Also contains all the blueprints for different models that we will use
+
+// We use P so that the user can pass in almost anything that resembles a file path and it will still function
+// We also set the default to PathBuf just because None is an Option<PathBuf> and PathBuf implements AsRef<Path>
+// Normally I would use unit type for that sort of thing, but since () doesn't have AsRef, we can't
+#[derive(Clone)]
 pub struct LatrConfig {
     pub fps_cap: u32,
+    pub model_file: Option<std::path::PathBuf>,
     pub resolution: (u32, u32),
     pub num_rays: (u32, u32),
     pub run_mode: RunMode,
+}
+
+impl LatrConfig {
+    pub fn attach_models<P: AsRef<std::path::Path>>(&mut self, file_path: P) {
+        let path_buf_file = file_path.as_ref().to_path_buf();
+        self.model_file = Some(path_buf_file);
+    }
 }
 
 impl Default for LatrConfig {
@@ -28,13 +41,14 @@ impl Default for LatrConfig {
             resolution,
             num_rays,
             run_mode: RunMode::default(),
+            model_file: None,
         }
     }
 }
 
 
 // This is an enum so more can be added later
-#[derive(Debug, PartialEq, Default)]
+#[derive(Debug, PartialEq, Default, Clone)]
 pub enum RunMode {
     #[default] // Gui is now default
     // Gui is the normal run mode with full features and screen

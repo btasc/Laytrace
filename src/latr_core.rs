@@ -21,7 +21,13 @@ pub struct LatrEngine {
 }
 
 impl LatrEngine {
-    pub fn start<T: PhysicsLoop + 'static + std::marker::Send>(self, state_tps_op: Option<(T, u32)>) -> Result<(), LatrError> {
+    pub fn start<T>(
+        self,
+        state_tps_op: Option<(T, u32)>,
+    ) -> Result<(), LatrError>
+    where
+        T: PhysicsLoop + 'static + std::marker::Send,
+    {
         let LatrEngine {
             config,
             engine_core,
@@ -30,25 +36,13 @@ impl LatrEngine {
             event_loop,
         } = self;
 
-        // tps = ticks per second
-        let (mut state, mut tps) = (None, None);
-
-        match state_tps_op {
-            Some(state_tps) => {
-                state = Some(state_tps.0);
-                tps = Some(state_tps.1);
-            },
-            None => (),
-        }
-
         run_event_loop::<T>(
            config,
            engine_core,
            gpu_core,
            window,
            event_loop,
-           state,
-           tps,
+           state_tps_op,
         )?;
 
         Ok(())
