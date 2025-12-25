@@ -1,6 +1,8 @@
 use bytemuck::{Pod, Zeroable};
 use std::mem::size_of;
 
+use crate::engine::bvh::BvhRes;
+
 // Since wgpu::Buffer is a ref count, we can just derive clone
 #[derive(Clone)]
 pub struct GpuBuffers {
@@ -72,6 +74,11 @@ impl GpuBuffers {
             mapped_at_creation: false,
         })
     }
+
+    pub fn write_bvh_res(&mut self, bvh_res: BvhRes) {
+        println!("Writing BVH res...");
+        todo!()
+    }
 }
 
 
@@ -99,15 +106,15 @@ struct GpuStorageInstanceMesh {
 // Triangle Data Buffer
 #[repr(C)]
 #[derive(Clone, Copy, Pod, Zeroable)]
-struct GpuStorageTriangleData {
+pub struct GpuStorageTriangleData {
 	// Vertex indices
-	vertices: [u32; 3],
+	pub vertices: [u32; 3],
 
 	// See note 2
-	_pad: u32,
+	pub _pad: u32,
 
 	// Texture data
-	rgba: [f32; 4],
+	pub rgba: [f32; 4],
 
 	// TBD on other data
 }
@@ -115,10 +122,10 @@ struct GpuStorageTriangleData {
 // Vertex Buffer
 #[repr(C)]
 #[derive(Clone, Copy, Pod, Zeroable)]
-struct GpuStorageVertex {
-	x: f32,
-	y: f32,
-	z: f32,
+pub struct GpuStorageVertex {
+	pub x: f32,
+	pub y: f32,
+	pub z: f32,
 }
 
 // TLAS Node Buffer

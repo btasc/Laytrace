@@ -28,9 +28,6 @@ fn main(
   @builtin(global_invocation_id) global_id: vec3<u32> /* xy coordinate of pixel, we dont need the z */
 ) {
     /*
-        In our system, we use y as up and down, x as forward and backward, and z as back and forth
-        Bascially, its a 2d grid with an added on 3d axis facing the viewer, positve for being closer to the viewer
-    */
     let texture_coord = vec2<i32>(global_id.xy);
     let math_coord = vec2<f32>(global_id.xy);
 
@@ -46,8 +43,9 @@ fn main(
         texture_coord,
         vec4<f32>(pixel_color, 1.0),
     );
+    */
 }
-
+/*
 fn get_ray_from_screen_coord(screen_coord: vec2<f32>) -> Ray {
     var ray: Ray = default_ray();
     ray.pos = uniform_params.camera_pos;
@@ -71,3 +69,4 @@ fn point_distance(p1: vec2<f32>, p2: vec2<f32>) -> f32 {
         (p1.y - p2.y) * (p1.y - p2.y)
     );
 }
+*/

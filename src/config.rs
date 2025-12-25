@@ -1,13 +1,5 @@
 use serde::Deserialize;
 
-use crate::{
-    error::LatrError,
-    latr_core::LatrEngine,
-    engine::{ 
-        engine_core::Engine,
-    },
-};
-
 // Config that specifies all settings for running
 // Has default implemented so you can just select a few things
 // Also contains all the blueprints for different models that we will use
@@ -63,18 +55,24 @@ pub enum RunMode {
 // All this code is here as it technically relates to a config, even though its used on engine
 // It's a bit iffy, but I want to pad the size of this file a bit, 40 lines is too small
 #[derive(Deserialize, Debug)]
-struct ExplicitModelConfig {
-    name: String,
-    path: String,
+pub struct ExplicitModelConfig {
+    pub name: String,
+    pub path: String,
+}
+
+// We use serde default and an Option here so that the user can leave fields blank
+// If the model folders is blank, it uses the default of an empty vec
+// if the directories are blank, it uses the default of None for option
+
+#[derive(Deserialize, Debug)]
+pub struct DirectoriesConfig {
+    #[serde(default)]
+    pub model_folders: Vec<String>,
 }
 
 #[derive(Deserialize, Debug)]
-struct DirectoriesConfig {
-    model_folders: Vec<String>,
-}
-
-#[derive(Deserialize, Debug)]
-struct ModelConfig {
-    directories: DirectoriesConfig,
-    models: Vec<ExplicitModelConfig>,
+pub struct ModelConfig {
+    pub directories: Option<DirectoriesConfig>,
+    #[serde(default)]
+    pub models: Vec<ExplicitModelConfig>,
 }

@@ -1,5 +1,5 @@
 use crate::{
-    error::{LatrError, WindowError},
+    error::{LatrError, WindowError, EngineError},
     config::LatrConfig,
     engine::{
         engine_core::{ Engine },
@@ -17,7 +17,6 @@ use std::{
     rc::Rc,
     thread,
 };
-use wgpu::wgc::command::bundle_ffi::wgpu_render_bundle_insert_debug_marker;
 
 pub fn run_event_loop<T: PhysicsLoop + 'static + std::marker::Send>(
     config: LatrConfig,
@@ -44,6 +43,7 @@ pub fn run_event_loop<T: PhysicsLoop + 'static + std::marker::Send>(
     let secondary_config = config.clone();
 
     let secondary_thread = thread::spawn(move || {
+
         // Move these explicitly
         let mut secondary_buffers = secondary_buffers;
         let mut secondary_queue = secondary_queue;
@@ -53,16 +53,43 @@ pub fn run_event_loop<T: PhysicsLoop + 'static + std::marker::Send>(
         
         let state_tps_op = state_tps_op;
 
-        // Run our first bvh task
-        { build_write_bvh(secondary_config.model_file, &mut secondary_buffers, &mut secondary_queue); };
+        // We store a res to return if any programs run into an error
+        let mut bvh_res: Result<(), EngineError> = Ok(());
+        let mut engine_res: Result<(), LatrError> = Ok(());
 
-        // After that is done, we run our engine
-        match state_tps_op {
-            Some((state, tps)) => {
-                engine.start_physics_loop(state, tps, &mut secondary_buffers, &mut secondary_queue);
+        // Run our first bvh task
+        match secondary_config.model_file {
+            Some(model_file) => {
+                bvh_res = build_write_bvh(model_file, &mut secondary_buffers, &mut secondary_queue);
             },
             None => (),
         }
+
+        match bvh_res {
+            Ok(_) => (),
+            Err(e) => {
+                eprintln!("{}", e);
+                return ();
+            },
+        }
+
+        // After that is done, we run our engine
+
+        match state_tps_op {
+            Some((state, tps)) => {
+                engine_res = engine.start_physics_loop(state, tps, &mut secondary_buffers, &mut secondary_queue);
+            },
+            None => (),
+        }
+
+        match engine_res {
+            Ok(_) => (),
+            Err(e) => {
+                eprintln!("{}", e);
+                return ();
+            },
+        }
+
     });
 
     let render_res = event_loop.run(move |event, elwt: &EventLoopWindowTarget<()>| {

@@ -1,4 +1,5 @@
-use winit::error::EventLoopError;
+use std::path::PathBuf;
+use std::io::ErrorKind;
 
 #[derive(thiserror::Error, Debug)]
 pub enum LatrError {
@@ -10,9 +11,6 @@ pub enum LatrError {
     
     #[error("The Engine ran into an error: {0}")]
     Engine(#[from] EngineError),
-    
-    #[error("The configuration ran into an error: {0}")]
-    Config(#[from] ConfigError),
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -29,20 +27,28 @@ pub enum WindowError {
 
 #[derive(thiserror::Error, Debug)]
 pub enum EngineError {
+    // Model config parsing errors
+    #[error("Model config file not found at specified location: {0}")]
+    ModelConfigNotFound(PathBuf),
     
+    #[error("Model directory is not found at specified location: {0}")]
+    ModelDirNotFound(PathBuf),
+    
+    #[error("Invalid directory passed in model config. Directory: {0}")]
+    InvalidDirectory(PathBuf),
+
+    #[error("Model config file has invalid data. Path: {0}")]
+    ModelConfigInvalidData(PathBuf),
+
+    #[error("Model config ran into an unknown IO error: {0}")]
+    Io(#[from] std::io::Error),
+
+    #[error("Parse error: {0}")]
+    Parse(#[from] toml::de::Error),
 }
 
 impl EngineError {
     pub const POISON_ERR: &'static str = "Main thread panicked; Ending engine process";
-}
-
-#[derive(thiserror::Error, Debug)]
-pub enum ConfigError {
-    #[error("Cannot find config file: {0}")]
-    NotFound(#[from] std::io::Error),
-
-    #[error("Cannot parse config file file: {0}")]
-    Parse(#[from] toml::de::Error),
 }
 
 #[derive(thiserror::Error, Debug)]
