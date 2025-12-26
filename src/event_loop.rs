@@ -3,7 +3,7 @@ use crate::{
     config::LatrConfig,
     engine::{
         engine_core::{ Engine },
-        bvh::build_write_bvh,
+        bvh_io::build_write_bvh,
     },
     gpu::gpu_core::GpuCore,
     PhysicsLoop

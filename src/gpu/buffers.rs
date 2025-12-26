@@ -1,7 +1,7 @@
 use bytemuck::{Pod, Zeroable};
 use std::mem::size_of;
 
-use crate::engine::bvh::BvhRes;
+use crate::engine::bvh_core::BvhRes;
 
 // Since wgpu::Buffer is a ref count, we can just derive clone
 #[derive(Clone)]
@@ -75,8 +75,8 @@ impl GpuBuffers {
         })
     }
 
-    pub fn write_bvh_res(&mut self, bvh_res: BvhRes) {
-        println!("Writing BVH res...");
+    pub fn write_bvh_res_batch(&mut self, bvh_res_vec: Vec<BvhRes>, queue: &mut wgpu::Queue) {
+
         todo!()
     }
 }
@@ -126,6 +126,12 @@ pub struct GpuStorageVertex {
 	pub x: f32,
 	pub y: f32,
 	pub z: f32,
+}
+
+impl GpuStorageVertex {
+    pub fn from_arr(pos: [f32; 3]) -> GpuStorageVertex {
+        Self { x: pos[0], y: pos[1], z: pos[2] }
+    }
 }
 
 // TLAS Node Buffer

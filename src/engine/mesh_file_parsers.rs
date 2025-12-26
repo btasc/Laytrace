@@ -1,0 +1,26 @@
+use std::io::ErrorKind;
+use std::path::PathBuf;
+use crate::engine::bvh_core::RawTriangleList;
+use crate::error::EngineError;
+
+pub fn read_file_to_string_except_engine_err(path: PathBuf) -> Result<String, EngineError> {
+    // We use .map_err to run only if there is an error
+    // It matches the kind of the io error to the engine error
+    // We do this as thiserror cant let us convert an enum to an error
+    // This code was a copy and paste snippet, be careful with unintended behavior
+
+    let file_contents = std::fs::read_to_string(&path)
+        .map_err(|e| match e.kind() {
+            ErrorKind::NotFound => EngineError::ModelConfigNotFound(path),
+            ErrorKind::InvalidData => EngineError::ModelConfigInvalidData(path),
+            _ => EngineError::Io(e),
+        })?;
+
+    Ok(file_contents)
+}
+
+pub fn parse_tri_file(file_path: PathBuf) -> Result<RawTriangleList, EngineError> {
+    let file_contents = read_file_to_string_except_engine_err(file_path)?;
+
+    todo!()
+}
