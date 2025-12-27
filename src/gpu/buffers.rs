@@ -1,4 +1,9 @@
 use bytemuck::{Pod, Zeroable};
+
+use glam::{
+    Mat4, Vec3, Vec3A,
+};
+
 use std::mem::size_of;
 
 use crate::engine::bvh_core::BvhRes;
@@ -92,7 +97,7 @@ impl GpuBuffers {
 struct GpuStorageInstanceMesh {
 	// Inverse of the matrix that transforms the origin model to the world model
 	// We precalculate the inverse on the cpu as to not waste gpu resources
-	inverse_transformation_matrix: [f32; 16],
+	inverse_transformation_matrix: Mat4,
 
 	// BLAS entry point
 	// See note 1 and 3
@@ -167,18 +172,16 @@ pub struct GpuStorageBlasTreeNode{
 }
 
 // BLAS Leaf Buffer
+// We change the tri count from 8 to 11, as this way we can reduce unnecessary padding
 #[repr(C)]
 #[derive(Clone, Copy, Pod, Zeroable)]
 pub struct GpuStorageBlasLeafNode {
-	// Indices for the 8 triangles in the box
-	pub triangles: [u32; 8],
+	// Indices for the 11 triangles in the box
+	pub triangles: [u32; 11],
 
-	// Triangle count, 0-8
-	// If triangle count is less than 8, assume all triangles past are junk
+	// Triangle count, 0-11
+	// If triangle count is less than 11, assume all triangles past are junk
 	pub triangle_count: u32,
-
-	// Note 2
-	pub _pad: [u32; 3],
 }
 
 // Camera Uniform Buffer

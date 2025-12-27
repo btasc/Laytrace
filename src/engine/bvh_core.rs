@@ -1,4 +1,3 @@
-use std::convert;
 use rayon::prelude::*;
 
 use crate::gpu::buffers::{
@@ -25,8 +24,31 @@ pub struct BvhRes {
 // This is our public entrypoint to building a BVH
 // This takes all the work from starting at raw vertex list to a full write set for the buffers
 pub fn build_mesh_bvh(raw_triangles: RawTriangleList) -> BvhRes {
-    // First, we index the vertices and the triangles for memory saving
+    // First we calculate the centroids of all the triangles
+    // We do this now because we still want access to the raw triangles
+    // The next step takes the data, so this is our last chance to use a slice
+    let centroids: Vec<[f32; 3]> = calculate_centroids(&raw_triangles);
+
+    // We index the vertices and the triangles for memory saving
     let (vertices, triangles) = sort_sweep_vertices(raw_triangles);
+
+    // ! Note - With how this function works, the indexes of the triangles are still matched with the raw ones
+    // This means that the centroids are still accurate, even though they are made from different arrays
+    // This also means that we can map attributes from other data besides the raw triangles to our indexed triangles
+    // For example, later we can build some more advanced struct that holds all the tri data and match that
+
+    // Now we use those to actually build our BVH
+    // Remember that for a bvh's children, its children our the index, and its index plus one
+    let blas_tree: Vec<BlasTree> = Vec::new();
+    let blas_leaves: Vec<BlasLeaf> = Vec::new();
+
+    // For this bvh recursion setup, I make a massive list of every tri index
+    // I then pass this into our bvh, where it recurses, splitting this list over and over
+    // Eventually, it should return our list of branches and leaves
+    // * we also give it our centroids
+    let tri_index_list = (0..triangles.len()).collect::<Vec<usize>>();
+
+
 
     // todo past this
 
@@ -37,6 +59,20 @@ pub fn build_mesh_bvh(raw_triangles: RawTriangleList) -> BvhRes {
         blas_tree: vec![],
         blas_leaves: vec![],
     }
+}
+
+fn recurse_bvh(tris_idx: &[usize], triangles: &Vec<TriangleData>, vertices: &Vec<Vertex>) {
+
+}
+
+fn calculate_centroids(raw_triangles: &[[f32; 9]]) -> Vec<[f32; 3]> {
+    raw_triangles.par_iter().map(|raw_tri| {
+        [
+            (raw_tri[0] + raw_tri[3] + raw_tri[6]) / 3.0,
+            (raw_tri[1] + raw_tri[4] + raw_tri[7]) / 3.0,
+            (raw_tri[2] + raw_tri[5] + raw_tri[8]) / 3.0,
+        ]
+    }).collect::<Vec<[f32; 3]>>()
 }
 
 
