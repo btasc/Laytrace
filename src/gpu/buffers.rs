@@ -1,9 +1,5 @@
 use bytemuck::{Pod, Zeroable};
 
-use glam::{
-    Mat4, Vec3, Vec3A,
-};
-
 use std::mem::size_of;
 
 use crate::engine::bvh_core::BvhRes;
@@ -97,7 +93,8 @@ impl GpuBuffers {
 struct GpuStorageInstanceMesh {
 	// Inverse of the matrix that transforms the origin model to the world model
 	// We precalculate the inverse on the cpu as to not waste gpu resources
-	inverse_transformation_matrix: Mat4,
+    // We also use the glam matrix for faster calculations
+	inverse_transformation_matrix: [f32; 16],
 
 	// BLAS entry point
 	// See note 1 and 3
@@ -113,6 +110,7 @@ struct GpuStorageInstanceMesh {
 #[derive(Clone, Copy, Pod, Zeroable)]
 pub struct GpuStorageTriangleData {
 	// Vertex indices
+    // We don't use glam as its just indices
 	pub vertices: [u32; 3],
 
 	// See note 2
