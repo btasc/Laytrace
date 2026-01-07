@@ -1,4 +1,5 @@
 pub const RAYTRACE_WGSL: &'static str = include_str!("../shaders/raytrace.wgsl");
+
 pub const RENDER_WGSL: &'static str = include_str!("../shaders/blit.wgsl");
 
 pub fn create_render_pipeline(

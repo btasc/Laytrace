@@ -137,50 +137,27 @@ impl GpuStorageVertex {
     }
 }
 
-// TLAS Node Buffer
+
 #[repr(C)]
 #[derive(Clone, Copy, Pod, Zeroable)]
-struct GpuStorageTlasNode {
-	// Two bounds for the box
-	min_bound: [f32; 3],
-	
-	// See note 2
-	_pad: u32,
+struct GpuStorageBvhNode {
+	// min bounds = 48 bytes
+	min_x: [f32; 4],
+	min_y: [f32; 4],
+	min_z: [f32; 4],
 
-	max_bound: [f32; 3],
-	
-	// See note 1. Positive value leads to another node, negative value leads to the instance buffer
-	node_or_instance: i32,
+	// max bounds = 48 bytes
+	max_x: [f32; 4],
+	max_y: [f32; 4],
+	max_z: [f32; 4],
+
+	// indices = 16 bytes
+	indices: [i32; 4]
+
+	// 112 bytes, we pad to 128 for caching 
+	_pad: [u32; 4]
 }
 
-// BLAS Tree Buffer
-#[repr(C)]
-#[derive(Clone, Copy, Pod, Zeroable)]
-pub struct GpuStorageBlasTreeNode{
-	// Two bounds for the box
-	pub min_bound: [f32; 3],
-
-	// See note 2
-	pub _pad: u32,
-
-	pub max_bound: [f32; 3],
-	
-	// See note 1 and note 3. Positive leads to another node, negative leads to a leaf
-	pub node_or_leaf: i32,
-}
-
-// BLAS Leaf Buffer
-// We change the tri count from 8 to 11, as this way we can reduce unnecessary padding
-#[repr(C)]
-#[derive(Clone, Copy, Pod, Zeroable)]
-pub struct GpuStorageBlasLeafNode {
-	// Indices for the 11 triangles in the box
-	pub triangles: [u32; 11],
-
-	// Triangle count, 0-11
-	// If triangle count is less than 11, assume all triangles past are junk
-	pub triangle_count: u32,
-}
 
 // Camera Uniform Buffer
 // Uniforms have to be multiples of 16, so we align 16
