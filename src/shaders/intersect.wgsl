@@ -35,30 +35,32 @@ fn intersect_tri(ray_origin: vec3<f32>, ray_dir: vec3<f32>, tri: mat3x3) -> vec3
     let v2 = tri[2];
 
     
-    // This code is very unoptimized, right now i made it more to just understand the theory
-    // I will go back and use a more standard approach later, but this works
-    // We organize it as u, v, t, the same as our return order
-    let var_consts_mat3: mat3x3 = mat3x3((v1 - v0), (v2 - v0), -1 * ray_dir);
-    let knowns: vec3 = ray_origin - v0;
+    let E1 = v1 - v0;
+    let E2 = v2 - v0;
 
-    let det = determinant(var_consts_mat3);
+    let T = ray_origin - v0;
+    
+    // XcY = X cross Y
+    let DcE2 = cross(ray_dir, E2);
+    let TcE1 = cross(T, E1);
 
-    // Ray is parralel to tri
-    if(abs(det) < 0.00001) {
-        return vec3f(0.0, 0.0, -1.0);
-    }
+    let det = dot(DcE2, E1);
 
-    let matx = mat3x3(knowns, var_consts_mat3[1], var_consts_mat3[2]);
-    let maty = mat3x3(var_consts_mat3[0], knowns, var_consts_mat3[2]);
-    let matz = mat3x3(var_consts_mat3[0], var_consts_mat3[1], knowns);
+    // This abs statement disables backface culling
+    // For now, we have this here for development, but for a final release version, removing this saves a lot of performance
+    // Note: This also requires us to check if our model correcty uses backface culling
+    // We also have to make sure our algorithm on the cpu side keeps the order of vertices for backface culling
+    if(abs(det) < 0.00001) return vec3f(0.0, 0.0, -1.0);
 
-    let u = determinant(matx) / det;
-    let v = determinant(maty) / det;
-    let t = determinant(matz) / det;
+    let inv_det = 1.0 / det;
 
-    if (u < 0.0 || u > 1.0 || v < 0.0 || u + v > 1.0 || t < 0.0) {
-        return vec3f(0.0, 0.0, -1.0);
-    }
+    let u = dot(DcE2, T) * inv_det;
+    if(u < 0.0 || u > 1.0) return vec3f(0.0, 0.0, -1.0);
+
+    let v = dot(TcE1, ray_dir) * inv_det;
+    if(v < 0.0 || u + v > 1.0) return vec3f(0.0, 0.0, -1.0);
+
+    let t = dot(TcE1, E2) * inv_det;
 
     return vec3f(u, v, t);
 }
