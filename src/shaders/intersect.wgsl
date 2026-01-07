@@ -26,6 +26,39 @@ fn intersect_tri(ray_origin: vec3<f32>, ray_dir: vec3<f32>, tri: mat3x3) -> vec3
         This means that we have enough data to make a systems of equations which is solvable.
         The method of solving is using Cramer's rule.
 
-        To do this, we 
+        See link for full explanation
+        https://www.scratchapixel.com/lessons/3d-basic-rendering/ray-tracing-rendering-a-triangle/moller-trumbore-ray-triangle-intersection.html
     */
+
+    let v0 = tri[0];
+    let v1 = tri[1];
+    let v2 = tri[2];
+
+    
+    // This code is very unoptimized, right now i made it more to just understand the theory
+    // I will go back and use a more standard approach later, but this works
+    // We organize it as u, v, t, the same as our return order
+    let var_consts_mat3: mat3x3 = mat3x3((v1 - v0), (v2 - v0), -1 * ray_dir);
+    let knowns: vec3 = ray_origin - v0;
+
+    let det = determinant(var_consts_mat3);
+
+    // Ray is parralel to tri
+    if(abs(det) < 0.00001) {
+        return vec3f(0.0, 0.0, -1.0);
+    }
+
+    let matx = mat3x3(knowns, var_consts_mat3[1], var_consts_mat3[2]);
+    let maty = mat3x3(var_consts_mat3[0], knowns, var_consts_mat3[2]);
+    let matz = mat3x3(var_consts_mat3[0], var_consts_mat3[1], knowns);
+
+    let u = determinant(matx) / det;
+    let v = determinant(maty) / det;
+    let t = determinant(matz) / det;
+
+    if (u < 0.0 || u > 1.0 || v < 0.0 || u + v > 1.0 || t < 0.0) {
+        return vec3f(0.0, 0.0, -1.0);
+    }
+
+    return vec3f(u, v, t);
 }
