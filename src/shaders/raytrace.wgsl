@@ -7,12 +7,30 @@ struct InstanceMesh {
     blas_entry: i32,
 }
 
+struct InstanceMeshWrapper {
+    data: array<InstanceMesh>,
+}
+
 struct TriangleData {
     vertices: vec3<u32>,
     rgba: vec4<f32>,
 }
 
-struct GpuStorageBvhNode {
+struct TriangleDataWrapper {
+    data: array<TriangleData>,
+}
+
+struct Vertex {
+    x: f32,
+    y: f32,
+    z: f32,
+}
+
+struct VertexWrapper {
+    data: array<Vertex>,
+}
+
+struct BvhNode {
 	// min bounds = 48 bytes
 	min_x: vec4<f32>,
 	min_y: vec4<f32>,
@@ -30,6 +48,14 @@ struct GpuStorageBvhNode {
 	_pad: vec4<u32>
 }
 
+struct BvhNodeWrapper {
+    nodes: array<BvhNode>
+}
+
+struct Camera {
+
+}
+
 struct Ray {
     origin: vec3f,
     direction: vec3f,
@@ -44,16 +70,39 @@ fn default_ray() -> Ray {
     return ray;
 }
 
-@group(0) @binding(1)
+@group(0) @binding(0)
 var output_texture: texture_storage_2d<rgba8unorm, write>;
+
+@group(0) @binding(1)
+var<uniform, read> camera_uniform: Camera;
+
+@group(0) @binding(2)
+var<storage, read> instance_storage: InstanceMeshWrapper;
+
+@group(0) @binding(3)
+var<storage, read> triangle_storage: TriangleDataWrapper;
+
+@group(0) @binding(4)
+var<storage, read> vertex_storage: VertexDataWrapper;
+
+@group(0) @binding(5)
+var<storage, read> tlas_storage: BvhNodeWrapper;
+
+@group(0) @binding(6)
+var<storage, read> blas_storage: BvhNodeWrapper;
 
 @compute
 @workgroup_size(8, 8, 1) // Workgroup size is just temporary for now, but 8x8 seems like a good standard
 fn main(
   @builtin(global_invocation_id) global_id: vec3<u32> /* xy coordinate of pixel, we dont need the z */
 ) {
-    /*
-    let texture_coord = vec2<i32>(global_id.xy);
+    let texture_dims = textureDimensions(output_texture); // We fetch the size of the texture to compare to our workgroup
+    let texture_coord = vec2<u32>(global_id.xy);
+
+    if(texture_coord.x >= texture_dims.x || texture_coord.y >= texture_dims.y) {
+        return ();
+    }
+
     let math_coord = vec2<f32>(global_id.xy);
 
     var pixel_color = vec3<f32>(1.0, 1.0, 1.0);
@@ -68,9 +117,9 @@ fn main(
         texture_coord,
         vec4<f32>(pixel_color, 1.0),
     );
-    */
+    
 }
-/*
+
 fn get_ray_from_screen_coord(screen_coord: vec2<f32>) -> Ray {
     var ray: Ray = default_ray();
     ray.pos = uniform_params.camera_pos;
@@ -94,7 +143,7 @@ fn point_distance(p1: vec2<f32>, p2: vec2<f32>) -> f32 {
         (p1.y - p2.y) * (p1.y - p2.y)
     );
 }
-*/
+
 
 
 

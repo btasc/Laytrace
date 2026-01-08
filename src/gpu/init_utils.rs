@@ -68,6 +68,7 @@ pub fn create_screen_texture(device: &wgpu::Device, texture_size: wgpu::Extent3d
         dimension: wgpu::TextureDimension::D2,
         // ! Compute buffer must output this format and the fragment shader must read this format correctly
         format: TEXTURE_FORMAT,
+        
         // OR operator merges the bitflags to mean both texture binding and storage binding
         usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::STORAGE_BINDING
     })
