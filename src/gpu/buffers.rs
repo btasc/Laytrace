@@ -2,8 +2,6 @@ use bytemuck::{Pod, Zeroable};
 
 use std::mem::size_of;
 
-use crate::engine::bvh_core::BvhRes;
-
 // Since wgpu::Buffer is a ref count, we can just derive clone
 #[derive(Clone)]
 pub struct GpuBuffers {
@@ -14,8 +12,7 @@ pub struct GpuBuffers {
 
     // BVH data
     pub(crate) tlas_buffer: wgpu::Buffer,
-    pub(crate) blas_tree_buffer: wgpu::Buffer,
-    pub(crate) blas_leaf_buffer: wgpu::Buffer,
+    pub(crate) blas_buffer: wgpu::Buffer,
 
     // Rendering data
     pub(crate) camera_uniform_buffer: wgpu::Buffer,
@@ -36,15 +33,11 @@ impl GpuBuffers {
         );
 
         let tlas_buffer = Self::create_storage_buffer(
-            &device, size_of::<GpuStorageTlasNode>() as u64, "TLAS Storage Buffer"
+            &device, size_of::<GpuStorageBvhNode>() as u64, "TLAS Storage Buffer"
         );
 
-        let blas_tree_buffer = Self::create_storage_buffer(
-            &device, size_of::<GpuStorageBlasTreeNode>() as u64, "BLAS Tree Storage Buffer"
-        );
-
-        let blas_leaf_buffer = Self::create_storage_buffer(
-            &device, size_of::<GpuStorageBlasLeafNode>() as u64, "BLAS Leaf Storage Buffer"
+        let blas_buffer = Self::create_storage_buffer(
+            &device, size_of::<GpuStorageBvhNode>() as u64, "BLAS Tree Storage Buffer"
         );
 
         let camera_uniform_buffer = device.create_buffer(&wgpu::BufferDescriptor {
@@ -56,8 +49,7 @@ impl GpuBuffers {
 
         Self {
             instance_mesh_buffer, triangle_data_buffer,
-            vertex_buffer, tlas_buffer, blas_tree_buffer,
-            blas_leaf_buffer, camera_uniform_buffer,
+            vertex_buffer, tlas_buffer, blas_buffer, camera_uniform_buffer,
         }
     }
 
@@ -76,7 +68,7 @@ impl GpuBuffers {
         })
     }
 
-    pub fn write_bvh_res_batch(&mut self, bvh_res_vec: Vec<BvhRes>, queue: &mut wgpu::Queue) {
+    pub fn write_blas_bvh(&mut self, bvh_node_vec: Vec<GpuStorageBvhNode>, queue: &mut wgpu::Queue) {
 
         todo!()
     }
@@ -140,22 +132,22 @@ impl GpuStorageVertex {
 
 #[repr(C)]
 #[derive(Clone, Copy, Pod, Zeroable)]
-struct GpuStorageBvhNode {
+pub struct GpuStorageBvhNode {
 	// min bounds = 48 bytes
-	min_x: [f32; 4],
-	min_y: [f32; 4],
-	min_z: [f32; 4],
+	pub min_x: [f32; 4],
+	pub min_y: [f32; 4],
+	pub min_z: [f32; 4],
 
 	// max bounds = 48 bytes
-	max_x: [f32; 4],
-	max_y: [f32; 4],
-	max_z: [f32; 4],
+	pub max_x: [f32; 4],
+	pub max_y: [f32; 4],
+	pub max_z: [f32; 4],
 
 	// indices = 16 bytes
-	indices: [i32; 4]
+	pub indices: [i32; 4],
 
 	// 112 bytes, we pad to 128 for caching 
-	_pad: [u32; 4]
+	_pad: [u32; 4],
 }
 
 

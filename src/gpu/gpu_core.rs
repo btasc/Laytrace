@@ -1,11 +1,10 @@
 use std::sync::Arc;
 
-use crate::{error::GpuError, LatrError};
-
+use crate::core::error::GpuError;
 use super::init_utils::{
-    make_device_queue_surface_config,
-    create_screen_texture,
     create_sampler,
+    create_screen_texture,
+    make_device_queue_surface_config,
 };
 
 use super::shaders::{

@@ -1,30 +1,30 @@
 use std::path::{ PathBuf, Path };
 use std::io::ErrorKind;
 
-use crate::gpu::buffers::{
-    GpuBuffers,
-};
+use crate::gpu::buffers::{GpuBuffers, GpuStorageBvhNode};
 
-use crate::config::{
+use crate::core::config::{
     ModelConfig,
     ExplicitModelConfig,
     DirectoriesConfig,
 };
 
-use super::bvh_core::{
-    BvhRes,
-    RawTriangleList,
-    build_mesh_bvh,
-};
+use crate::core::error::EngineError;
 
 use super::mesh_file_parsers::{
     read_file_to_string_except_engine_err,
     parse_tri_file,
 };
 
-use crate::error::{ EngineError };
+// todo This file is out of date with other blas code
+// Update this!
 
 use rayon::prelude::*;
+use glam::{ Vec3A, Vec3 };
+
+// End of importing
+
+pub type RawTriangleList = Vec<[f32; 9]>;
 
 pub struct BvhTriBatch {
     vertices: Vec<RawTriangleList>,
@@ -34,57 +34,9 @@ pub struct BvhTriBatch {
 impl BvhTriBatch {
     const MAX_MESH_NUM: usize = 24;
     const MAX_MEM_NUM: usize = 0x10_000_000; // 256 Megabytes
-
-    pub fn new() -> Self {
-        Self {
-            vertices: Vec::new(),
-            current_mem: 0,
-        }
-    }
-
-    pub fn push_and_check(&mut self, new_triangles: RawTriangleList) -> Option<Vec<BvhRes>> {
-        let new_mem_size = new_triangles.len() * std::mem::size_of::<[f32; 9]>();
-
-        let would_overflow_mem = (self.current_mem + new_mem_size) > Self::MAX_MEM_NUM;
-        let hit_count_limit = self.vertices.len() >= Self::MAX_MESH_NUM;
-
-        if (hit_count_limit || would_overflow_mem) && !self.vertices.is_empty() {
-            let results = self.flush();
-
-            self.push_vertices(new_triangles, new_mem_size);
-
-            return Some(results);
-        }
-
-        self.push_vertices(new_triangles, new_mem_size);
-        None
-    }
-
-    // We have this as a separate flush so that it returns an option
-    pub fn flush_option(&mut self) -> Option<Vec<BvhRes>> {
-        if self.vertices.is_empty() {
-            return None;
-        }
-
-        Some(self.flush())
-    }
-
-    fn push_vertices(&mut self, data: RawTriangleList, size: usize) {
-        self.current_mem += size;
-        self.vertices.push(data);
-    }
-
-    // Flush option, returns
-    fn flush(&mut self) -> Vec<BvhRes> {
-        // std::mem::take lets us take ownership of the vec with just an access level of &mut self
-        let batch_to_process = std::mem::take(&mut self.vertices);
-
-        self.current_mem = 0;
-
-        batch_to_process
-            .into_par_iter()
-            .map(|raw_triangle_list| build_mesh_bvh(raw_triangle_list))
-            .collect()
+    
+    fn new() -> Self {
+        todo!()
     }
 }
 
@@ -146,10 +98,10 @@ pub fn build_write_bvh(model_config_file_path: PathBuf, buffers: &mut GpuBuffers
                 }
 
                 if let Some(raw_triangles) = raw_triangles_op {
-                    let push_op = bvh_tri_batch.push_and_check(raw_triangles);
+                    let push_op = None; //bvh_tri_batch.push_and_check(raw_triangles);
 
                     if let Some(bvh_res_vec) = push_op {
-                        buffers.write_bvh_res_batch(bvh_res_vec, queue);
+                        buffers.write_blas_bvh(bvh_res_vec, queue);
                     }
                 }
             }
@@ -161,10 +113,10 @@ pub fn build_write_bvh(model_config_file_path: PathBuf, buffers: &mut GpuBuffers
     // todo
 
     // After both runs, we flush any remaining models still in our batch
-    let flush_op = bvh_tri_batch.flush_option();
+    let flush_op = None; //bvh_tri_batch.flush_option();
 
     if let Some(bvh_res_vec) = flush_op {
-        buffers.write_bvh_res_batch(bvh_res_vec, queue);
+        buffers.write_blas_bvh(bvh_res_vec, queue);
     }
 
     Ok(())

@@ -1,7 +1,8 @@
 use std::io::ErrorKind;
 use std::path::PathBuf;
-use crate::engine::bvh_core::RawTriangleList;
-use crate::error::EngineError;
+use crate::core::error::EngineError;
+
+use super::blas::RawTriangleList;
 
 pub fn read_file_to_string_except_engine_err(path: PathBuf) -> Result<String, EngineError> {
     // We use .map_err to run only if there is an error

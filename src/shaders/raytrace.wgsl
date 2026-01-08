@@ -148,15 +148,24 @@ fn intersect_tri(ray_origin: vec3<f32>, ray_dir: vec3<f32>, tri: mat3x3) -> vec3
     // For now, we have this here for development, but for a final release version, removing this saves a lot of performance
     // Note: This also requires us to check if our model correcty uses backface culling
     // We also have to make sure our algorithm on the cpu side keeps the order of vertices for backface culling
-    if(abs(det) < 0.00001) return vec3f(0.0, 0.0, -1.0);
+    if(abs(det) < 0.00001) {
+        return vec3f(0.0, 0.0, -1.0)
+    };
 
     let inv_det = 1.0 / det;
 
     let u = dot(DcE2, T) * inv_det;
-    if(u < 0.0 || u > 1.0) return vec3f(0.0, 0.0, -1.0);
+
+    // We return early - we get less data, but its data that we dont need that saves time
+    if(u < 0.0 || u > 1.0) {
+        return vec3f(0.0, 0.0, -1.0)
+    };
 
     let v = dot(TcE1, ray_dir) * inv_det;
-    if(v < 0.0 || u + v > 1.0) return vec3f(0.0, 0.0, -1.0);
+
+    if(v < 0.0 || u + v > 1.0) {
+        return vec3f(0.0, 0.0, -1.0)
+    };
 
     let t = dot(TcE1, E2) * inv_det;
 

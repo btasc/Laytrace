@@ -1,14 +1,12 @@
 use crate::{
-    error::{LatrError, WindowError, }, 
-    config::LatrConfig, 
-    engine::{
-        engine_core::{ Engine, PhysicsLoop },
-    }, 
-    gpu::gpu_core::GpuCore, 
-    event_loop::run_event_loop, 
+    engine::engine_core::{Engine, PhysicsLoop},
+    gpu::gpu_core::GpuCore,
 };
 
 use std::sync::Arc;
+use crate::core::config::LatrConfig;
+use crate::core::error::{LatrError, WindowError, };
+use crate::core::event_loop::run_event_loop;
 
 pub struct LatrEngine {
     config: LatrConfig,

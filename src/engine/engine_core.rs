@@ -1,13 +1,11 @@
-use crate::{
-    error::{EngineError, LatrError},
-    config::LatrConfig,
-    gpu::buffers::GpuUniformCamera,
-};
+use crate::gpu::buffers::GpuUniformCamera;
 
 use std::{
-    time::{Instant, Duration},
     thread,
+    time::{Duration, Instant},
 };
+use crate::core::config::LatrConfig;
+use crate::core::error::{EngineError, LatrError};
 use crate::gpu::buffers::GpuBuffers;
 
 pub trait PhysicsLoop {

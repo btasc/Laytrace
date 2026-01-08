@@ -59,11 +59,8 @@ pub fn create_raytrace_bindgroup_layout(device: &wgpu::Device) -> wgpu::BindGrou
             // TLAS
             create_compute_layout_entry(true, 5),
 
-            // BLAS Tree
+            // BLAS
             create_compute_layout_entry(true, 6),
-
-            // BLAS leaves
-            create_compute_layout_entry(true, 7),
         ],
     })
 }
@@ -104,12 +101,8 @@ pub fn create_raytrace_bindgroup(
             },
             wgpu::BindGroupEntry {
                 binding: 6,
-                resource: buffers.blas_tree_buffer.as_entire_binding(),
-            },
-            wgpu::BindGroupEntry {
-                binding: 7,
-                resource: buffers.blas_leaf_buffer.as_entire_binding(),
-            },
+                resource: buffers.blas_buffer.as_entire_binding(),
+            }
         ],
     })
 }

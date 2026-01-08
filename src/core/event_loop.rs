@@ -1,9 +1,7 @@
 use crate::{
-    error::{LatrError, WindowError, EngineError},
-    config::LatrConfig,
     engine::{
-        engine_core::{ Engine },
-        bvh_io::build_write_bvh,
+        blas::build_write_bvh,
+        engine_core::Engine,
     },
     gpu::gpu_core::GpuCore,
     PhysicsLoop
@@ -12,11 +10,13 @@ use crate::{
 use winit::event_loop::EventLoopWindowTarget;
 
 use std::{
-    sync::{Arc, mpsc},
     cell::RefCell,
     rc::Rc,
+    sync::Arc,
     thread,
 };
+use crate::core::config::LatrConfig;
+use crate::core::error::{EngineError, LatrError, WindowError};
 
 pub fn run_event_loop<T: PhysicsLoop + 'static + std::marker::Send>(
     config: LatrConfig,

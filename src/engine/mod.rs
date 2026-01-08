@@ -1,5 +1,5 @@
 pub mod engine_core;
 pub mod mesh;
-pub mod bvh_io;
-pub(crate) mod bvh_core;
+pub mod blas;
+pub(crate) mod bvh;
 mod mesh_file_parsers;

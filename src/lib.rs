@@ -1,13 +1,8 @@
-mod error;
 mod engine;
 mod gpu;
-mod event_loop;
-mod latr_core;
-mod config;
+mod core;
 
-pub use crate::{
-    error::LatrError,
-    latr_core::LatrEngine,
-    config::{ LatrConfig, RunMode },
-    engine::engine_core::{ Engine, PhysicsLoop },
-};
+pub use core::config::{LatrConfig, RunMode};
+pub use core::error::LatrError;
+pub use core::latr_core::LatrEngine;
+pub use crate::engine::engine_core::{Engine, PhysicsLoop};
