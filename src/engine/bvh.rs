@@ -1,10 +1,7 @@
 use rayon::prelude::*;
 
-use glam::{
-    Vec3, Vec3A,
-    UVec3,
-};
-use crate::engine::bvh;
+use glam::{Vec3, Vec3A, UVec3, Vec3Swizzles};
+
 use crate::gpu::buffers::GpuStorageBvhNode;
 
 // End of imports
@@ -21,11 +18,11 @@ pub enum BvhNode {
     Branch(BvhBranch)
 }
 
+#[derive(Clone, Copy)]
 pub struct AABB {
     pub min: Vec3,
     pub max: Vec3,
 }
-
 
 struct BvhBranch {
     left: Box<BvhNode>,
@@ -38,6 +35,27 @@ struct RecurseCtx<'a> {
     centroids: &'a [Vec3],
 }
 
+#[derive(Clone, Copy)]
+struct BvhBin {
+    bounds: AABB,
+    tri_count: usize,
+}
+
+impl BvhBin {
+    fn add(&mut self, tri_bounds: &AABB) {
+        self.bounds.grow(tri_bounds);
+        self.tri_count += 1;
+    }
+}
+
+impl Default for BvhBin {
+    fn default() -> Self {
+        BvhBin {
+            bounds: AABB::new_max_inv(),
+            tri_count: 0,
+        }
+    }
+}
 
 impl BvhNode {
     pub fn build<T: BvhPrimitive>(primitives: Vec<T>) -> Self {
@@ -64,6 +82,10 @@ impl BvhNode {
 }
 
 impl AABB {
+    fn new(min: Vec3, max: Vec3) -> Self {
+        Self { min, max }
+    }
+
     fn grow(&mut self, other_box: &AABB) {
         self.min = self.min.min(other_box.min);
         self.max = self.max.max(other_box.max);
@@ -73,30 +95,77 @@ impl AABB {
         self.min = self.min.max(other_box.min);
         self.max = self.max.min(other_box.max);
     }
+
+    fn surface_area(&self) -> f32 {
+        // We make use of some SIMD functions to calculate the surface area faster
+        let d = self.max - self.min;
+        let surfaces = d * d.yzx();
+
+        2.0 * surfaces.element_sum()
+    }
+
+    fn new_max_inv() -> Self {
+        AABB {
+            min: Vec3::new(f32::MAX, f32::MAX, f32::MAX),
+            max: Vec3::new(f32::MIN, f32::MIN, f32::MIN),
+        }
+    }
 }
 
-fn bvh_recurse(idxs: &mut [usize], ctx: RecurseCtx) {
-    let best_cost: f64 = f64::MAX;
+impl Default for AABB {
+    fn default() -> Self {
+        AABB {
+            min: Vec3::splat(f32::INFINITY),
+            max: Vec3::splat(f32::NEG_INFINITY),
+        }
+    }
+}
+
+fn bvh_recurse(idxs: &mut [usize], parent_centroid_bounds: AABB, ctx: RecurseCtx) {
+    let mut best_cost: f32 = f32::MAX;
 
     // For each axis
     // X Y Z
     for axis in 0..3usize {
+        let axis_extent: f32 = (parent_centroid_bounds.max[axis] - parent_centroid_bounds.min[axis]) as f32;
+        let mut bins: [BvhBin; BINS] = [BvhBin::default(); BINS];
 
-        let left_aabb = AABB {
-            min: Vec3::default(),
-            max: Vec3::default(),
-        };
+        for idx in idxs.iter() {
+            // Distance of tri centroid from side, divided by axis_extent for the ratio of tri to box for our bin
+            let tri_extent: f32 = (ctx.centroids[*idx][axis] - parent_centroid_bounds.min[axis]) as f32;
+            // BINS causes an off by one error, so we -1 at the end
+            let bin_idx: usize = ( (tri_extent / axis_extent) * (BINS as f32) ).floor() as usize - 1;
 
-        let right_aabb = AABB {
-            min: Vec3::default(),
-            max: Vec3::default(),
-        };
+            bins[bin_idx].add(&ctx.aabbs[*idx]);
+        }
 
-        // Sort our triangles by our current axis
-        // This is where we take advantage of our &mut [usize] - we can just sort it without actually allocating a new vec
-        idxs.sort_unstable_by(|a, b|
-           ctx.centroids[*a][axis].total_cmp(&ctx.centroids[*b][axis])
-        );
+        let mut left_surface_areas: [f32; BINS] = [0.0; BINS];
+        let mut left_tri_count: [usize; BINS] = [0; BINS];
+
+        let mut iter_bounds = AABB::new_max_inv();
+        let mut iter_count = 0;
+
+        for i in 0..BINS {
+            iter_bounds.grow(&bins[i].bounds);
+            iter_count += &bins[i].tri_count;
+
+            left_surface_areas[i] = iter_bounds.surface_area();
+            left_tri_count[i] = iter_count;
+        }
+
+        iter_bounds = AABB::new_max_inv();
+        iter_count = 0;
+
+        let mut right_surface_areas: [f32; BINS] = [0.0; BINS];
+        let mut right_tri_count: [usize; BINS] = [0; BINS];
+
+        for i in (0..BINS).rev() {
+            iter_bounds.grow(&bins[i].bounds);
+            iter_count += &bins[i].tri_count;
+
+            right_surface_areas[i] = iter_bounds.surface_area();
+            right_tri_count[i] = iter_count;
+        }
 
     }
 
