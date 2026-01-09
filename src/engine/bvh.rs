@@ -123,6 +123,8 @@ impl Default for AABB {
 
 fn bvh_recurse(idxs: &mut [usize], parent_centroid_bounds: AABB, ctx: RecurseCtx) {
     let mut best_cost: f32 = f32::MAX;
+    let mut best_axis: usize = 0;
+    let mut best_split: usize = 0;
 
     // For each axis
     // X Y Z
@@ -133,6 +135,7 @@ fn bvh_recurse(idxs: &mut [usize], parent_centroid_bounds: AABB, ctx: RecurseCtx
         for idx in idxs.iter() {
             // Distance of tri centroid from side, divided by axis_extent for the ratio of tri to box for our bin
             let tri_extent: f32 = (ctx.centroids[*idx][axis] - parent_centroid_bounds.min[axis]) as f32;
+
             // BINS causes an off by one error, so we -1 at the end
             let bin_idx: usize = ( (tri_extent / axis_extent) * (BINS as f32) ).floor() as usize - 1;
 
@@ -167,6 +170,24 @@ fn bvh_recurse(idxs: &mut [usize], parent_centroid_bounds: AABB, ctx: RecurseCtx
             right_tri_count[i] = iter_count;
         }
 
+        // Our variables for our SAH cost are set up, now we just need to iterate and check
+        for i in 0..BINS {
+            let cost: f32 = 
+                left_surface_areas[i] * left_tri_count as f32 + 
+                right_surface_areas[i] * right_tri_count as f32;
+
+            if cost < best_cost {
+                best_cost = cost;
+                best_axis = axis;
+                best_split = left_tri_count;
+            }
+        }
     }
+
+    let (left_split, right_split) = idxs.split_at_mut(best_spli);
+
+    
+
+
 
 }
