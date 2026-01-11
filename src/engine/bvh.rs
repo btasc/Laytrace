@@ -121,8 +121,15 @@ impl Default for AABB {
     }
 }
 
-fn bvh_recurse(idxs: &mut [usize], parent_centroid_bounds: AABB, ctx: RecurseCtx) {
+fn bvh_recurse(idxs: &mut [usize], parent_centroid_bounds: AABB, ctx: RecurseCtx) -> BvhNode {
     let mut best_cost: f32 = f32::MAX;
+
+    // 0 -> x, 1 -> y, 2 -> z, it's the index of the Vec3
+    let mut best_axis: usize = 0;
+    let mut best_split: f32 = f32::NAN;
+
+    let mut left_split_centroid_bounds: AABB = AABB::new_max_inv();
+    let mut right_split_centroid_bounds: AABB = AABB::new_max_inv();
 
     // For each axis
     // X Y Z
@@ -167,6 +174,32 @@ fn bvh_recurse(idxs: &mut [usize], parent_centroid_bounds: AABB, ctx: RecurseCtx
             right_tri_count[i] = iter_count;
         }
 
+        for i in 0..BINS {
+            let split_cost = left_surface_areas[i] * left_tri_count[i] as f32 + right_surface_areas[i] * right_tri_count[i] as f32;
+
+            if split_cost < best_cost {
+                best_cost = split_cost;
+
+                best_split = (i as f32 * axis_extent) / (BINS as f32 * axis_extent);
+                best_axis = axis;
+            }
+        }
     }
+
+    let mut mid: usize = 0;
+
+    // This is the Lomuto Partition Algorithm
+    // It just splits our array down the middle for our .split_at_mut
+    for i in 0..idxs.len() {
+
+        if ctx.centroids[idxs[i]][best_axis] <= best_split {
+            idxs.swap(i, mid);
+            mid += 1;
+        }
+    }
+
+    let (left_split, right_split): (&mut [usize], &mut [usize]) = idxs.split_at_mut(mid);
+
+
 
 }
