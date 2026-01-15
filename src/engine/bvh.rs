@@ -30,6 +30,7 @@ struct BvhBranch {
     aabb: AABB,
 }
 
+#[derive(Clone, Copy)]
 struct RecurseCtx<'a> {
     aabbs: &'a [AABB],
     centroids: &'a [Vec3],
@@ -71,9 +72,13 @@ impl BvhNode {
             centroids: &centroids,
         };
 
-        bvh_recurse(&mut idxs, recurse_ctx);
+        let mut parent_centroid_box = AABB::new_max_inv();
 
-        todo!()
+        for tri_idx in idxs.iter() {
+            parent_centroid_box.grow_from_point(recurse_ctx.centroids[*tri_idx]);
+        }
+
+        bvh_recurse(&mut idxs, parent_centroid_box, recurse_ctx)
     }
 
     pub fn flatten(self) -> Vec<GpuStorageBvhNode>{
@@ -91,6 +96,11 @@ impl AABB {
         self.max = self.max.max(other_box.max);
     }
 
+    pub fn grow_from_point(&mut self, point: Vec3) {
+        self.min = self.min.min(point);
+        self.max = self.max.max(point);
+    }
+
     fn shrink(&mut self, other_box: &AABB) {
         self.min = self.min.max(other_box.min);
         self.max = self.max.min(other_box.max);
@@ -104,11 +114,15 @@ impl AABB {
         2.0 * surfaces.element_sum()
     }
 
-    fn new_max_inv() -> Self {
+    pub fn new_max_inv() -> Self {
         AABB {
             min: Vec3::new(f32::MAX, f32::MAX, f32::MAX),
             max: Vec3::new(f32::MIN, f32::MIN, f32::MIN),
         }
+    }
+
+    fn iter_grow(&mut self, box_itt: impl Iterator<Item=AABB>) {
+        box_itt.for_each(|aabb| self.grow(&aabb));
     }
 }
 
@@ -122,14 +136,16 @@ impl Default for AABB {
 }
 
 fn bvh_recurse(idxs: &mut [usize], parent_centroid_bounds: AABB, ctx: RecurseCtx) -> BvhNode {
+
+    if idxs.len() == 1 {
+        return BvhNode::Leaf(idxs[0]);
+    }
+
     let mut best_cost: f32 = f32::MAX;
 
     // 0 -> x, 1 -> y, 2 -> z, it's the index of the Vec3
     let mut best_axis: usize = 0;
     let mut best_split: f32 = f32::NAN;
-
-    let mut left_split_centroid_bounds: AABB = AABB::new_max_inv();
-    let mut right_split_centroid_bounds: AABB = AABB::new_max_inv();
 
     // For each axis
     // X Y Z
@@ -199,7 +215,23 @@ fn bvh_recurse(idxs: &mut [usize], parent_centroid_bounds: AABB, ctx: RecurseCtx
     }
 
     let (left_split, right_split): (&mut [usize], &mut [usize]) = idxs.split_at_mut(mid);
+    let (mut left_centroid_bounds, mut right_centroid_bounds) = (AABB::new_max_inv(), AABB::new_max_inv());
 
+    for tri_idx in left_split.iter() {
+        left_centroid_bounds.grow_from_point(ctx.centroids[*tri_idx]);
+    }
 
+    for tri_idx in right_split.iter() {
+        right_centroid_bounds.grow_from_point(ctx.centroids[*tri_idx]);
+    }
+
+    let (left_res, right_res): (BvhNode, BvhNode) =
+        rayon::join(|| bvh_recurse(left_split, left_centroid_bounds, ctx), || bvh_recurse(right_split, right_centroid_bounds, ctx));
+
+    BvhNode::Branch(BvhBranch {
+        left: Box::new(left_res),
+        right: Box::new(right_res),
+        aabb: Default::default(),
+    })
 
 }

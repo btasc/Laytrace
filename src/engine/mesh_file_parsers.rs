@@ -2,7 +2,7 @@ use std::io::ErrorKind;
 use std::path::PathBuf;
 use crate::core::error::EngineError;
 
-use super::blas::RawTriangleList;
+use super::blas::RawTriangle;
 
 pub fn read_file_to_string_except_engine_err(path: PathBuf) -> Result<String, EngineError> {
     // We use .map_err to run only if there is an error
@@ -20,7 +20,7 @@ pub fn read_file_to_string_except_engine_err(path: PathBuf) -> Result<String, En
     Ok(file_contents)
 }
 
-pub fn parse_tri_file(file_path: PathBuf) -> Result<RawTriangleList, EngineError> {
+pub fn parse_tri_file(file_path: PathBuf) -> Result<Vec<RawTriangle>, EngineError> {
     let file_contents = read_file_to_string_except_engine_err(file_path)?;
 
     todo!()

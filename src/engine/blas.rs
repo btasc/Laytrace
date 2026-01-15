@@ -16,18 +16,33 @@ use super::mesh_file_parsers::{
     parse_tri_file,
 };
 
-// todo This file is out of date with other blas code
-// Update this!
+use super::bvh::{BvhNode, BvhPrimitive, AABB};
 
 use rayon::prelude::*;
 use glam::{ Vec3A, Vec3 };
 
 // End of importing
 
-pub type RawTriangleList = Vec<[f32; 9]>;
+pub type RawTriangle = [f32; 9];
+
+impl BvhPrimitive for RawTriangle {
+    fn get_aabb(&self) -> AABB {
+        let mut aabb = AABB::new_max_inv();
+
+        for i in 0..3 {
+            aabb.grow_from_point(Vec3::new(self[i * 3], self[i * 3 + 1], self[i * 3 + 2]));
+        }
+
+        aabb
+    }
+
+    fn get_centroid(&self) -> Vec3 {
+        (Vec3::new(self[0], self[1], self[2]) + Vec3::new(self[3], self[4], self[5]) + Vec3::new(self[6], self[7], self[8])) / 3.0
+    }
+}
 
 pub struct BvhTriBatch {
-    vertices: Vec<RawTriangleList>,
+    vertices: Vec<Vec<RawTriangle>>,
     current_mem: usize,
 }
 
@@ -36,7 +51,35 @@ impl BvhTriBatch {
     const MAX_MEM_NUM: usize = 0x10_000_000; // 256 Megabytes
     
     fn new() -> Self {
-        todo!()
+        BvhTriBatch {
+            vertices: Vec::new(),
+            current_mem: 0,
+        }
+    }
+
+    fn push(&mut self, vertices: Vec<RawTriangle>) {
+        self.current_mem += size_of::<RawTriangle>() * vertices.len();
+        self.vertices.push(vertices);
+    }
+
+    fn check_push(mut self, vertices: Vec<RawTriangle>, buffers: &mut GpuBuffers, queue: &mut wgpu::Queue) -> Self {
+        if vertices.len() >= Self::MAX_MESH_NUM || size_of::<RawTriangle>() * vertices.len() >= Self::MAX_MEM_NUM {
+            self = self.flush(buffers, queue);
+        }
+
+        self.push(vertices);
+        self
+    }
+
+    fn flush(mut self, buffers: &mut GpuBuffers, queue: &mut wgpu::Queue) -> Self {
+        let res: Vec<BvhNode> = self.vertices.into_par_iter().map(|v| BvhNode::build(v)).collect();
+        let gpu_batches: Vec<Vec<GpuStorageBvhNode>> = res.into_iter().map(|r| r.flatten()).collect();
+
+        for batch in gpu_batches {
+            buffers.write_blas_bvh(batch, queue);
+        }
+
+        Self::new()
     }
 }
 
@@ -88,7 +131,7 @@ pub fn build_write_bvh(model_config_file_path: PathBuf, buffers: &mut GpuBuffers
                 // We get the osstr from the extension and convert it to a str
                 // We then match it against supported file extensions
                 // For now we just have .tri, representing a soup of sets of 9 vertices
-                let mut raw_triangles_op: Option<RawTriangleList> = None;
+                let mut raw_triangles_op: Option<Vec<RawTriangle>> = None;
 
                 if let Some(extension) = file_path.extension().and_then(|s| s.to_str()) {
                     match extension {
@@ -98,11 +141,7 @@ pub fn build_write_bvh(model_config_file_path: PathBuf, buffers: &mut GpuBuffers
                 }
 
                 if let Some(raw_triangles) = raw_triangles_op {
-                    let push_op = None; //bvh_tri_batch.push_and_check(raw_triangles);
-
-                    if let Some(bvh_res_vec) = push_op {
-                        buffers.write_blas_bvh(bvh_res_vec, queue);
-                    }
+                    bvh_tri_batch = bvh_tri_batch.check_push(raw_triangles, buffers, queue);
                 }
             }
         }
