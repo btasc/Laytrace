@@ -1,6 +1,6 @@
 use crate::{
     engine::{
-        blas::build_write_bvh,
+        blas::build_blas,
         engine_core::Engine,
     },
     gpu::gpu_core::GpuCore,
@@ -60,7 +60,7 @@ pub fn run_event_loop<T: PhysicsLoop + 'static + std::marker::Send>(
         // Run our first bvh task
         match secondary_config.model_file {
             Some(model_file) => {
-                bvh_res = build_write_bvh(model_file, &mut secondary_buffers, &mut secondary_queue);
+                bvh_res = build_blas(model_file, &mut secondary_buffers, &mut secondary_queue);
             },
             None => (),
         }
@@ -74,6 +74,7 @@ pub fn run_event_loop<T: PhysicsLoop + 'static + std::marker::Send>(
         }
 
         // After that is done, we run our engine
+        println!("Started running engine");
 
         match state_tps_op {
             Some((state, tps)) => {

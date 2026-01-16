@@ -82,7 +82,9 @@ impl BvhNode {
     }
 
     pub fn flatten(self) -> Vec<GpuStorageBvhNode>{
-        todo!()
+        let storage_vec: Vec<GpuStorageBvhNode> = Vec::new();
+
+        storage_vec
     }
 }
 
@@ -233,5 +235,4 @@ fn bvh_recurse(idxs: &mut [usize], parent_centroid_bounds: AABB, ctx: RecurseCtx
         right: Box::new(right_res),
         aabb: Default::default(),
     })
-
 }

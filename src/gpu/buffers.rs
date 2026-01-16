@@ -69,8 +69,7 @@ impl GpuBuffers {
     }
 
     pub fn write_blas_bvh(&mut self, bvh_node_vec: Vec<GpuStorageBvhNode>, queue: &mut wgpu::Queue) {
-
-        todo!()
+        // todo
     }
 }
 

@@ -23,7 +23,17 @@ use glam::{ Vec3A, Vec3 };
 
 // End of importing
 
+pub trait RawTriangleParse {
+    fn from_9_floats(floats: [f32; 9]) -> RawTriangle;
+}
+
 pub type RawTriangle = [f32; 9];
+
+impl RawTriangleParse for RawTriangle {
+    fn from_9_floats(floats: [f32; 9]) -> RawTriangle {
+        floats
+    }
+}
 
 impl BvhPrimitive for RawTriangle {
     fn get_aabb(&self) -> AABB {
@@ -72,6 +82,10 @@ impl BvhTriBatch {
     }
 
     fn flush(mut self, buffers: &mut GpuBuffers, queue: &mut wgpu::Queue) -> Self {
+        if self.vertices.is_empty() {
+            return Self::new();
+        }
+
         let res: Vec<BvhNode> = self.vertices.into_par_iter().map(|v| BvhNode::build(v)).collect();
         let gpu_batches: Vec<Vec<GpuStorageBvhNode>> = res.into_iter().map(|r| r.flatten()).collect();
 
@@ -89,7 +103,7 @@ impl BvhTriBatch {
 // This function is meant to be run on a separate thread
 // This is the public entry to this file
 // It handles most of the annoying io and writes to the buffers
-pub fn build_write_bvh(model_config_file_path: PathBuf, buffers: &mut GpuBuffers, queue: &mut wgpu::Queue) -> Result<(), EngineError> {
+pub fn build_blas(model_config_file_path: PathBuf, buffers: &mut GpuBuffers, queue: &mut wgpu::Queue) -> Result<(), EngineError> {
     // We get the parent to use for any other io operations using the contents of the model config toml file
     let config_parent_dir = model_config_file_path.parent()
         .unwrap_or(Path::new("."));
@@ -152,11 +166,7 @@ pub fn build_write_bvh(model_config_file_path: PathBuf, buffers: &mut GpuBuffers
     // todo
 
     // After both runs, we flush any remaining models still in our batch
-    let flush_op = None; //bvh_tri_batch.flush_option();
-
-    if let Some(bvh_res_vec) = flush_op {
-        buffers.write_blas_bvh(bvh_res_vec, queue);
-    }
+    bvh_tri_batch.flush(buffers, queue);
 
     Ok(())
 }

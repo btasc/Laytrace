@@ -43,8 +43,14 @@ pub enum EngineError {
     #[error("Model config ran into an unknown IO error: {0}")]
     Io(#[from] std::io::Error),
 
-    #[error("Parse error: {0}")]
-    Parse(#[from] toml::de::Error),
+    #[error("Model config parse error: {0}")]
+    ModelParse(#[from] toml::de::Error),
+
+    #[error("Tri file parse error. Invalid data. Check for data that is not a standard floating point number: {0}")]
+    TriFileParse(#[from] std::num::ParseFloatError),
+
+    #[error("Tri file parse error. Floats in .tri file are not in a multiple of 9. Each triangle should be nine floats.")]
+    TriFileFloatNum,
 }
 
 impl EngineError {

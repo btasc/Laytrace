@@ -1,9 +1,7 @@
-// Right now this file is in progress
-// It just writes to the texture as red for every pixel
-// I have it as red because that way I can know that it works
+
 
 struct InstanceMesh {
-    inverse_transformation_matrix: mat4x4,
+    inverse_transformation_matrix: mat4x4<f32>,
     blas_entry: i32,
 }
 
@@ -42,7 +40,7 @@ struct BvhNode {
 	max_z: vec4<f32>,
 
 	// indices = 16 bytes
-	indices: vec4<i32>
+	indices: vec4<i32>,
 
 	// 112 bytes, we pad to 128 for caching 
 	_pad: vec4<u32>
@@ -53,7 +51,7 @@ struct BvhNodeWrapper {
 }
 
 struct Camera {
-
+    pos: vec3f,
 }
 
 struct Ray {
@@ -74,7 +72,7 @@ fn default_ray() -> Ray {
 var output_texture: texture_storage_2d<rgba8unorm, write>;
 
 @group(0) @binding(1)
-var<uniform, read> camera_uniform: Camera;
+var<uniform> camera_uniform: Camera;
 
 @group(0) @binding(2)
 var<storage, read> instance_storage: InstanceMeshWrapper;
@@ -83,7 +81,7 @@ var<storage, read> instance_storage: InstanceMeshWrapper;
 var<storage, read> triangle_storage: TriangleDataWrapper;
 
 @group(0) @binding(4)
-var<storage, read> vertex_storage: VertexDataWrapper;
+var<storage, read> vertex_storage: VertexWrapper;
 
 @group(0) @binding(5)
 var<storage, read> tlas_storage: BvhNodeWrapper;
@@ -99,10 +97,6 @@ fn main(
     let texture_dims = textureDimensions(output_texture); // We fetch the size of the texture to compare to our workgroup
     let texture_coord = vec2<u32>(global_id.xy);
 
-    if(texture_coord.x >= texture_dims.x || texture_coord.y >= texture_dims.y) {
-        return ();
-    }
-
     let math_coord = vec2<f32>(global_id.xy);
 
     var pixel_color = vec3<f32>(1.0, 1.0, 1.0);
@@ -110,7 +104,7 @@ fn main(
     let ray: Ray = get_ray_from_screen_coord(math_coord);
 
     // Just sets all pixels to red to test that this works
-    pixel_color = compute_ray_color(ray);
+    pixel_color = vec3<f32>(0.0, 0.0, 1.0);
 
     textureStore(
         output_texture,
@@ -122,7 +116,7 @@ fn main(
 
 fn get_ray_from_screen_coord(screen_coord: vec2<f32>) -> Ray {
     var ray: Ray = default_ray();
-    ray.pos = uniform_params.camera_pos;
+    ray.origin = camera_uniform.pos;
 
     // This should be the coordinate of the 2d coordinate but in 3d space relative to the camera
     // As said, this is relative, so its value is actually the same as the momentum
@@ -132,7 +126,7 @@ fn get_ray_from_screen_coord(screen_coord: vec2<f32>) -> Ray {
     // This means that our camera's coordinates should be negative to look forward at some object at 0, 0, 0
     screen_3d_coord = vec3<f32>(screen_coord.x, screen_coord.y, 1);
 
-    ray.mom = screen_3d_coord;
+    ray.direction = screen_3d_coord;
 
     return ray;
 }
@@ -144,10 +138,7 @@ fn point_distance(p1: vec2<f32>, p2: vec2<f32>) -> f32 {
     );
 }
 
-
-
-
-fn intersect_tri(ray_origin: vec3<f32>, ray_dir: vec3<f32>, tri: mat3x3) -> vec3<f32> /* Returns u, v, t*/ {
+fn intersect_tri(ray_origin: vec3<f32>, ray_dir: vec3<f32>, tri: mat3x3<f32>) -> vec3<f32> /* Returns u, v, t*/ {
     /*
         Here, we use the moller trumbore algorithm
 
@@ -198,8 +189,8 @@ fn intersect_tri(ray_origin: vec3<f32>, ray_dir: vec3<f32>, tri: mat3x3) -> vec3
     // Note: This also requires us to check if our model correcty uses backface culling
     // We also have to make sure our algorithm on the cpu side keeps the order of vertices for backface culling
     if(abs(det) < 0.00001) {
-        return vec3f(0.0, 0.0, -1.0)
-    };
+        return vec3f(0.0, 0.0, -1.0);
+    }
 
     let inv_det = 1.0 / det;
 
@@ -207,14 +198,14 @@ fn intersect_tri(ray_origin: vec3<f32>, ray_dir: vec3<f32>, tri: mat3x3) -> vec3
 
     // We return early - we get less data, but its data that we dont need that saves time
     if(u < 0.0 || u > 1.0) {
-        return vec3f(0.0, 0.0, -1.0)
-    };
+        return vec3f(0.0, 0.0, -1.0);
+    }
 
     let v = dot(TcE1, ray_dir) * inv_det;
 
     if(v < 0.0 || u + v > 1.0) {
-        return vec3f(0.0, 0.0, -1.0)
-    };
+        return vec3f(0.0, 0.0, -1.0);
+    }
 
     let t = dot(TcE1, E2) * inv_det;
 
