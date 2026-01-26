@@ -1,10 +1,10 @@
 use std::io::ErrorKind;
-use std::path::PathBuf;
+use std::path::{PathBuf, Path};
 use crate::core::error::EngineError;
 
 use super::blas::{RawTriangle, RawTriangleParse};
 
-pub fn read_file_to_string_except_engine_err(path: PathBuf) -> Result<String, EngineError> {
+pub fn read_file_to_string_except_engine_err(path: &Path) -> Result<String, EngineError> {
     // We use .map_err to run only if there is an error
     // It matches the kind of the io error to the engine error
     // We do this as thiserror cant let us convert an enum to an error
@@ -12,15 +12,15 @@ pub fn read_file_to_string_except_engine_err(path: PathBuf) -> Result<String, En
 
     let file_contents = std::fs::read_to_string(&path)
         .map_err(|e| match e.kind() {
-            ErrorKind::NotFound => EngineError::ModelConfigNotFound(path),
-            ErrorKind::InvalidData => EngineError::ModelConfigInvalidData(path),
+            ErrorKind::NotFound => EngineError::ModelConfigNotFound(path.to_path_buf()),
+            ErrorKind::InvalidData => EngineError::ModelConfigInvalidData(path.to_path_buf()),
             _ => EngineError::Io(e),
         })?;
 
     Ok(file_contents)
 }
 
-pub fn parse_tri_file(file_path: PathBuf) -> Result<Vec<RawTriangle>, EngineError> {
+pub fn parse_tri_file(file_path: &Path) -> Result<Vec<RawTriangle>, EngineError> {
     let file_contents = read_file_to_string_except_engine_err(file_path)?;
 
     let floats: Vec<f32> = file_contents

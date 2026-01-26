@@ -146,8 +146,24 @@ pub struct GpuStorageBvhNode {
 	pub indices: [i32; 4],
 
 	// 112 bytes, we pad to 128 for caching 
-	_pad: [u32; 4],
+    pub(crate) _pad: [u32; 4],
 }
+
+impl Default for GpuStorageBvhNode {
+    fn default() -> Self {
+        let min = [0.0, 0.0, 0.0, 0.0];
+        let max = [0.0, 0.0, 0.0, 0.0];
+
+        GpuStorageBvhNode {
+            min_x: min, min_y: min, min_z: min,
+            max_x: max, max_y: max, max_z: max,
+            indices: [0, 0, 0, 0],
+            _pad: [0, 0, 0, 0],
+        }
+    }
+}
+
+
 
 
 // Camera Uniform Buffer

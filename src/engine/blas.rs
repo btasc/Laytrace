@@ -27,11 +27,15 @@ pub trait RawTriangleParse {
     fn from_9_floats(floats: [f32; 9]) -> RawTriangle;
 }
 
-pub type RawTriangle = [f32; 9];
+pub type RawTriangle = [Vec3; 3];
 
 impl RawTriangleParse for RawTriangle {
     fn from_9_floats(floats: [f32; 9]) -> RawTriangle {
-        floats
+        [
+            Vec3::new(floats[0], floats[1], floats[2]),
+            Vec3::new(floats[3], floats[4], floats[5]),
+            Vec3::new(floats[6], floats[7], floats[8])
+        ]
     }
 }
 
@@ -40,19 +44,17 @@ impl BvhPrimitive for RawTriangle {
         let mut aabb = AABB::new_max_inv();
 
         for i in 0..3 {
-            aabb.grow_from_point(Vec3::new(self[i * 3], self[i * 3 + 1], self[i * 3 + 2]));
+            aabb.grow_from_point(self[i]);
         }
 
         aabb
     }
 
-    fn get_centroid(&self) -> Vec3 {
-        (Vec3::new(self[0], self[1], self[2]) + Vec3::new(self[3], self[4], self[5]) + Vec3::new(self[6], self[7], self[8])) / 3.0
-    }
+    fn get_centroid(&self) -> Vec3 { (self[0] + self[1] + self[2]) / 3.0 }
 }
 
 pub struct BvhTriBatch {
-    vertices: Vec<Vec<RawTriangle>>,
+    raw_meshes: Vec<Vec<RawTriangle>>,
     current_mem: usize,
 }
 
@@ -62,18 +64,18 @@ impl BvhTriBatch {
     
     fn new() -> Self {
         BvhTriBatch {
-            vertices: Vec::new(),
+            raw_meshes: Vec::new(),
             current_mem: 0,
         }
     }
 
     fn push(&mut self, vertices: Vec<RawTriangle>) {
         self.current_mem += size_of::<RawTriangle>() * vertices.len();
-        self.vertices.push(vertices);
+        self.raw_meshes.push(vertices);
     }
 
     fn check_push(mut self, vertices: Vec<RawTriangle>, buffers: &mut GpuBuffers, queue: &mut wgpu::Queue) -> Self {
-        if vertices.len() >= Self::MAX_MESH_NUM || size_of::<RawTriangle>() * vertices.len() >= Self::MAX_MEM_NUM {
+        if self.raw_meshes.len() >= Self::MAX_MESH_NUM || size_of::<RawTriangle>() * vertices.len() + self.current_mem >= Self::MAX_MEM_NUM {
             self = self.flush(buffers, queue);
         }
 
@@ -82,12 +84,12 @@ impl BvhTriBatch {
     }
 
     fn flush(mut self, buffers: &mut GpuBuffers, queue: &mut wgpu::Queue) -> Self {
-        if self.vertices.is_empty() {
+        if self.raw_meshes.is_empty() {
             return Self::new();
         }
 
-        let res: Vec<BvhNode> = self.vertices.into_par_iter().map(|v| BvhNode::build(v)).collect();
-        let gpu_batches: Vec<Vec<GpuStorageBvhNode>> = res.into_iter().map(|r| r.flatten()).collect();
+        let res: Vec<BvhNode> = self.raw_meshes.into_par_iter().map(|v| BvhNode::build(v)).collect();
+        let gpu_batches: Vec<Vec<GpuStorageBvhNode>> = res.into_iter().map(|r| r.flatten_to_blas()).collect();
 
         for batch in gpu_batches {
             buffers.write_blas_bvh(batch, queue);
@@ -149,7 +151,8 @@ pub fn build_blas(model_config_file_path: PathBuf, buffers: &mut GpuBuffers, que
 
                 if let Some(extension) = file_path.extension().and_then(|s| s.to_str()) {
                     match extension {
-                        "tri" => raw_triangles_op = Some(parse_tri_file(file_path.clone())?),
+                        // todo todo todo please
+                        "tri" => raw_triangles_op = parse_tri_file(&file_path),
                         _ => (),
                     }
                 }

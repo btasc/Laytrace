@@ -8,7 +8,7 @@ pub enum LatrError {
 
     #[error("The Winit Window ran into an error: {0}")]
     Window(#[from] WindowError),
-    
+
     #[error("The Engine ran into an error: {0}")]
     Engine(#[from] EngineError),
 }
@@ -20,7 +20,7 @@ pub enum WindowError {
 
     #[error("Error occurred when building Winit window with Winit: {0}")]
     WindowInit(#[from] winit::error::OsError),
-    
+
     #[error("Event loop exited for an unknown reason")]
     EventLoopExited,
 }
@@ -30,10 +30,10 @@ pub enum EngineError {
     // Model config parsing errors
     #[error("Model config file not found at specified location: {0}")]
     ModelConfigNotFound(PathBuf),
-    
+
     #[error("Model directory is not found at specified location: {0}")]
     ModelDirNotFound(PathBuf),
-    
+
     #[error("Invalid directory passed in model config. Directory: {0}")]
     InvalidDirectory(PathBuf),
 
