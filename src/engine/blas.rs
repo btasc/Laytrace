@@ -20,7 +20,7 @@ use super::bvh::{BvhNode, BvhPrimitive, AABB};
 
 use rayon::prelude::*;
 use glam::{ Vec3A, Vec3 };
-
+use crate::Engine;
 // End of importing
 
 pub trait RawTriangleParse {
@@ -110,7 +110,7 @@ pub fn build_blas(model_config_file_path: PathBuf, buffers: &mut GpuBuffers, que
     let config_parent_dir = model_config_file_path.parent()
         .unwrap_or(Path::new("."));
 
-    let model_config_file_contents = read_file_to_string_except_engine_err(model_config_file_path.clone())?;
+    let model_config_file_contents = read_file_to_string_except_engine_err(&model_config_file_path)?;
     let model_config: ModelConfig = toml::from_str(&model_config_file_contents.as_str())?;
 
     // We store a struct of raw triangle lists for rayon with par_iter
@@ -150,10 +150,18 @@ pub fn build_blas(model_config_file_path: PathBuf, buffers: &mut GpuBuffers, que
                 let mut raw_triangles_op: Option<Vec<RawTriangle>> = None;
 
                 if let Some(extension) = file_path.extension().and_then(|s| s.to_str()) {
+                    let mut parse_res_op: Option<Result<Vec<RawTriangle>, EngineError>> = None;
+
                     match extension {
-                        // todo todo todo please
-                        "tri" => raw_triangles_op = parse_tri_file(&file_path),
+                        "tri" => parse_res_op = Some(parse_tri_file(&file_path)),
                         _ => (),
+                    }
+
+                    if let Some(parse_res) = parse_res_op {
+                        match parse_res {
+                            Ok(r) => raw_triangles_op = Some(r),
+                            Err(e) => eprintln!("Error while parsing file \"{}\", error: {}", file_path.display(), e),
+                        }
                     }
                 }
 
@@ -166,7 +174,7 @@ pub fn build_blas(model_config_file_path: PathBuf, buffers: &mut GpuBuffers, que
 
     // Our loop over the model directories is done, now we do explicit directories
 
-    // todo
+    // todo todo
 
     // After both runs, we flush any remaining models still in our batch
     bvh_tri_batch.flush(buffers, queue);

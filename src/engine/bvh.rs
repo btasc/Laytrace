@@ -2,7 +2,7 @@ use rayon::prelude::*;
 use glam::{Vec3, Vec3A, UVec3, Vec3Swizzles};
 
 use std::collections::VecDeque;
-
+use wgpu::DeviceDescriptor;
 use crate::gpu::buffers::GpuStorageBvhNode;
 
 // End of imports
@@ -15,7 +15,7 @@ pub trait BvhPrimitive {
 }
 
 pub enum BvhNode {
-    Leaf(usize),
+    Leaf(BvhLeaf),
     Branch(BvhBranch)
 }
 
@@ -29,6 +29,11 @@ struct BvhBranch {
     left: Box<BvhNode>,
     right: Box<BvhNode>,
     aabb: AABB,
+}
+
+struct BvhLeaf {
+    aabb: AABB,
+    idx: usize,
 }
 
 #[derive(Clone, Copy)]
@@ -59,6 +64,8 @@ impl Default for BvhBin {
     }
 }
 
+type DequeChild = (Box<BvhNode>, usize);
+
 impl BvhNode {
     pub fn build<T: BvhPrimitive>(primitives: Vec<T>) -> Self {
         let mut idxs: Vec<usize> = (0..primitives.len()).collect();
@@ -82,58 +89,114 @@ impl BvhNode {
         bvh_recurse(&mut idxs, parent_centroid_box, recurse_ctx)
     }
 
-    // Our goal is to take each branch at a time and spit out a GpuStorageBvhNode
-    // We use a deque to add branches to the back and pop them off the front as we go
-    // We give each node a tag to its parent, the tag is composed to 2 usize-s
-    // The first usize is the idx of its parent, and the second is the idx inside that parent
-    // When we process our next node, we update the previous to reflect the childs idx
-    pub fn flatten_to_blas(self) -> Vec<GpuStorageBvhNode>{
-        let mut storage_vec: Vec<GpuStorageBvhNode> = Vec::new();
+    // The idea behind this function is that it takes our binary tree that uses the format of 2
+    // heap ptrs and some payload, and converts it to a bvh4 system, where each node contains
+    // 4 indices (instead of heap ptrs), along with the corresponding payload
+    // See docs for explanation of format (I might not of written them yet assuming this project is still early)
 
-        // Our [usize; 2] is the tag mentioned
-        let mut child_deque: VecDeque<(Box<BvhBranch>, [usize; 2])> = VecDeque::new();
+    // We do this by having a deque of all children to be processed
+    // Instead of going through each node, constructing its GpuStorageBvhNode with all the filled in data
+    // then returning that, we instead just add a default impl of it to the array plus a usize set to 0, and then give all
+    // its children the index to that empty node
 
-        match self {
-            // This is the edge case of a model being a single triangle
-            // We give it an infinite bounding box with its triangle as the only thing in it
-            BvhNode::Leaf(idx) => {
-                let min = [f32::NEG_INFINITY, 0.0, 0.0, 0.0];
-                let max = [f32::INFINITY, 1.0, 1.0, 1.0];
+    // Now for each child, we can trace back to its parent, and fill in the information needed, then
+    // inc the usize value to show the amount of times it has been inced
+    pub fn flatten_to_blas(self) -> Vec<GpuStorageBvhNode> {
+        let mut storage_vec: Vec<(GpuStorageBvhNode, usize)> = Vec::new();
+        let mut child_deque: VecDeque<DequeChild> = VecDeque::new();
 
-                storage_vec.push(GpuStorageBvhNode {
-                    min_x: min, min_y: min, min_z: min,
-                    max_x: max, max_y: max, max_z: max,
-                    indices: [(idx + 1) as i32 * -1, 0, 0, 0],
-                    _pad: [0, 0, 0, 0],
-                });
-            },
-            BvhNode::Branch(branch) => {
+        // Start the cycle by adding a blank storage node and 0 representing there being 0 children slotted
+        storage_vec.push((GpuStorageBvhNode::default(), 0));
+        child_deque.extend(self.take_4(0).into_iter().flatten());
 
+        while let Some((node, parent_idx)) = child_deque.pop_front() {
+            // First we do the preprocessing, which is updating the parent with this nodes information
+            // We scope this to drop our mutable ref to the storage vec after this is done, and it looks nice
+            {
+                // Since we are going to append this node's gpu node to the end, the index of the soon-to-be
+                // node is just the len of the storage vec
+                let idx: i32 = match &*node {
+                    BvhNode::Leaf(leaf) => (leaf.idx as i32 + 1) * -1,
+                    BvhNode::Branch(_) => storage_vec.len() as i32 + 1,
+                };
 
+                let (storage_node, slot) = &mut storage_vec[parent_idx];
+                node.slot_to_gpu_node(storage_node, *slot, idx);
 
+                // Inc the slot num to show that the next space is available for future children
+                *slot += 1;
+            }
+
+            // Now we append our blank gpu storage node for future children to write to
+            // 0 represents 0 children currently in the storage node
+            // We only do this if we're on a branch
+            if let BvhNode::Branch(_) = *node {
+                storage_vec.push((GpuStorageBvhNode::default(), 0));
+
+                // Now we redo our take cycle, adding this nodes children to the deque back
+                // Our parent idx is the idx of our current node, as its about to be the parent to the 4 children
+                // Again, the idx of the current node is the storage vec len, but since we appended it, we subtract 1
+                child_deque.extend(node.take_4(storage_vec.len() - 1).into_iter().flatten());
             }
         }
 
-        while let Some(node) = child_deque.pop_front() {
+        storage_vec.shrink_to_fit();
 
-        }
-
-        storage_vec
+        // Finally, we remove our unnecessary slot num value and return our storage nodes
+        storage_vec.into_iter()
+            .map(|s| s.0)
+            .collect()
     }
 
-    fn to_gpu_node(nodes: [Option<&BvhNode>; 4]) -> GpuStorageBvhNode {
-        let storage = GpuStorageBvhNode::default();
-        let mut node_num = 0;
+    fn take_4(self, parent_idx: usize) -> [Option<DequeChild>; 4] {
+        let mut child_num: usize = 0;
+        let mut ret_arr: [Option<DequeChild>; 4] = [const { None }; 4];
 
-        for _ in 0..4 {
-            let Some(node) = nodes[node_num] else { continue; };
+        let BvhNode::Branch(branch) = self else {
+            return ret_arr;
+        };
 
+        let (left, right) = (branch.left, branch.right);
 
+        Self::match_child(left, &mut ret_arr, &mut child_num, parent_idx);
+        Self::match_child(right, &mut ret_arr, &mut child_num, parent_idx);
 
-            node_num += 1;
+        ret_arr
+    }
+
+    // Helper function for take 4
+    fn match_child(node: Box<BvhNode>, ret: &mut [Option<DequeChild>; 4], child_num: &mut usize, parent_idx: usize) {
+        match *node {
+            BvhNode::Leaf(_) => {
+                ret[*child_num] = Some((node, parent_idx));
+                *child_num += 1;
+            },
+            BvhNode::Branch(branch) => {
+                ret[*child_num] = Some((branch.left, parent_idx));
+                *child_num += 1;
+
+                ret[*child_num] = Some((branch.right, parent_idx));
+                *child_num += 1;
+            }
         }
+    }
 
-        storage
+    fn slot_to_gpu_node(&self, node: &mut GpuStorageBvhNode, slot: usize, idx: i32) {
+        debug_assert!(slot <= 3, "Requested slot at slot_to_gpu_node in engine::bvh is greater than 3 (0-3), the max amount of children a bvh4 node can have.");
+
+        let aabb = match self {
+            BvhNode::Leaf(leaf) => leaf.aabb,
+            BvhNode::Branch(branch) => branch.aabb,
+        };
+
+        node.indices[slot] = idx;
+
+        node.min_x[slot] = aabb.min.x;
+        node.min_y[slot] = aabb.min.y;
+        node.min_z[slot] = aabb.min.z;
+        node.max_x[slot] = aabb.max.x;
+        node.max_y[slot] = aabb.max.y;
+        node.max_z[slot] = aabb.max.z;
     }
 }
 
@@ -193,14 +256,21 @@ impl Default for AABB {
     }
 }
 
-fn bvh_recurse(idxs: &mut [usize], parent_centroid_bounds: AABB, ctx: RecurseCtx) -> BvhNode {
+
+// Note if idxs is multiple (the child will be a bvh branch in this case),
+// we then have parent bounds be equal to the bounds of the centroids of the box
+// If idxs is a single usize, then we have a single triangle. In this case, we recurse
+// with parent bounds being equal to
+fn bvh_recurse(idxs: &mut [usize], parent_bounds: AABB, ctx: RecurseCtx) -> BvhNode {
 
     if idxs.len() == 1 {
-        return BvhNode::Leaf(idxs[0]);
+        return BvhNode::Leaf(BvhLeaf {
+            idx: idxs[0],
+            aabb: parent_bounds,
+        });
     }
 
 
 
     todo!()
-
 }
