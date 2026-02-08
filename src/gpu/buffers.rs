@@ -19,25 +19,32 @@ pub struct GpuBuffers {
 }
 
 impl GpuBuffers {
+    const INSTANCE_START: u64 = 1 << 12;
+    const TRIANGLE_START: u64 = 1 << 16;
+    const VERTEX_START: u64 = 1 << 16;
+
+    const TLAS_START: u64 = Self::INSTANCE_START * 2;
+    const BLAS_START: u64 = Self::TRIANGLE_START * 2;
+
     pub fn new(device: &wgpu::Device) -> Self {
         let instance_mesh_buffer = Self::create_storage_buffer(
-            &device, size_of::<GpuStorageInstanceMesh>() as u64, "Instance Mesh Storage Buffer"
+            &device, size_of::<GpuStorageInstanceMesh>() as u64 * Self::INSTANCE_START, "Instance Mesh Storage Buffer"
         );
 
         let triangle_data_buffer = Self::create_storage_buffer(
-            &device, size_of::<GpuStorageTriangleData>() as u64, "Triangle Data Storage Buffer"
+            &device, size_of::<GpuStorageTriangleData>() as u64 * Self::TRIANGLE_START, "Triangle Data Storage Buffer"
         );
 
         let vertex_buffer = Self::create_storage_buffer(
-            &device, size_of::<GpuStorageVertex>() as u64, "Vertex Storage Buffer"
+            &device, size_of::<GpuStorageVertex>() as u64 * Self::VERTEX_START, "Vertex Storage Buffer"
         );
 
         let tlas_buffer = Self::create_storage_buffer(
-            &device, size_of::<GpuStorageBvhNode>() as u64, "TLAS Storage Buffer"
+            &device, size_of::<GpuStorageBvhNode>() as u64 * Self::TLAS_START, "TLAS Storage Buffer"
         );
 
         let blas_buffer = Self::create_storage_buffer(
-            &device, size_of::<GpuStorageBvhNode>() as u64, "BLAS Tree Storage Buffer"
+            &device, size_of::<GpuStorageBvhNode>() as u64 * Self::BLAS_START, "BLAS Tree Storage Buffer"
         );
 
         let camera_uniform_buffer = device.create_buffer(&wgpu::BufferDescriptor {
@@ -68,8 +75,13 @@ impl GpuBuffers {
         })
     }
 
-    pub fn write_blas_bvh(&mut self, bvh_node_vec: Vec<GpuStorageBvhNode>, queue: &mut wgpu::Queue) {
-        // todo
+    pub fn write_blas_bvh(&mut self, queue: &wgpu::Queue, device: &wgpu::Device, bvh_node_vec: &[GpuStorageBvhNode]) {
+
+
+    }
+
+    pub fn write_vertices(&mut self, queue: &wgpu::Queue, device: &wgpu::Device, gpu_vertices: &[GpuStorageVertex]) {
+
     }
 }
 
@@ -131,6 +143,8 @@ impl GpuStorageVertex {
 
 #[repr(C)]
 #[derive(Clone, Copy, Pod, Zeroable)]
+#[derive(Debug)]
+#[derive(PartialEq)]
 pub struct GpuStorageBvhNode {
 	// min bounds = 48 bytes
 	pub min_x: [f32; 4],

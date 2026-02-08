@@ -20,7 +20,7 @@ use super::bvh::{BvhNode, BvhPrimitive, AABB};
 
 use rayon::prelude::*;
 use glam::{ Vec3A, Vec3 };
-use crate::Engine;
+
 // End of importing
 
 pub trait RawTriangleParse {
@@ -74,16 +74,16 @@ impl BvhTriBatch {
         self.raw_meshes.push(vertices);
     }
 
-    fn check_push(mut self, vertices: Vec<RawTriangle>, buffers: &mut GpuBuffers, queue: &mut wgpu::Queue) -> Self {
+    fn check_push(mut self, vertices: Vec<RawTriangle>, buffers: &mut GpuBuffers, queue: &wgpu::Queue, device: &wgpu::Device) -> Self {
         if self.raw_meshes.len() >= Self::MAX_MESH_NUM || size_of::<RawTriangle>() * vertices.len() + self.current_mem >= Self::MAX_MEM_NUM {
-            self = self.flush(buffers, queue);
+            self = self.flush(buffers, queue, device);
         }
 
         self.push(vertices);
         self
     }
 
-    fn flush(mut self, buffers: &mut GpuBuffers, queue: &mut wgpu::Queue) -> Self {
+    fn flush(self, buffers: &mut GpuBuffers, queue: &wgpu::Queue, device: &wgpu::Device) -> Self {
         if self.raw_meshes.is_empty() {
             return Self::new();
         }
@@ -92,7 +92,7 @@ impl BvhTriBatch {
         let gpu_batches: Vec<Vec<GpuStorageBvhNode>> = res.into_iter().map(|r| r.flatten_to_blas()).collect();
 
         for batch in gpu_batches {
-            buffers.write_blas_bvh(batch, queue);
+            buffers.write_blas_bvh(queue, device, batch.as_slice());
         }
 
         Self::new()
@@ -105,7 +105,7 @@ impl BvhTriBatch {
 // This function is meant to be run on a separate thread
 // This is the public entry to this file
 // It handles most of the annoying io and writes to the buffers
-pub fn build_blas(model_config_file_path: PathBuf, buffers: &mut GpuBuffers, queue: &mut wgpu::Queue) -> Result<(), EngineError> {
+pub fn build_blas(model_config_file_path: PathBuf, buffers: &mut GpuBuffers, queue: &wgpu::Queue, device: &wgpu::Device) -> Result<(), EngineError> {
     // We get the parent to use for any other io operations using the contents of the model config toml file
     let config_parent_dir = model_config_file_path.parent()
         .unwrap_or(Path::new("."));
@@ -166,7 +166,7 @@ pub fn build_blas(model_config_file_path: PathBuf, buffers: &mut GpuBuffers, que
                 }
 
                 if let Some(raw_triangles) = raw_triangles_op {
-                    bvh_tri_batch = bvh_tri_batch.check_push(raw_triangles, buffers, queue);
+                    bvh_tri_batch = bvh_tri_batch.check_push(raw_triangles, buffers, queue, device);
                 }
             }
         }
@@ -174,10 +174,14 @@ pub fn build_blas(model_config_file_path: PathBuf, buffers: &mut GpuBuffers, que
 
     // Our loop over the model directories is done, now we do explicit directories
 
+    for explicit_model in model_config.models {
+
+    }
+
     // todo todo
 
     // After both runs, we flush any remaining models still in our batch
-    bvh_tri_batch.flush(buffers, queue);
+    bvh_tri_batch.flush(buffers, queue, device);
 
     Ok(())
 }

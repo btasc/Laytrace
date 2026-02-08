@@ -40,7 +40,7 @@ impl Engine {
         state: T,
         tps /* Tick rate per second of loop */: u32,
         buffers: &mut GpuBuffers,
-        queue: &mut wgpu::Queue,
+        queue: &wgpu::Queue,
     ) -> Result<(), LatrError> {
         let mut state = state;
 

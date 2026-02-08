@@ -33,7 +33,7 @@ impl PhysicsLoop for SimState {
     }
 
     fn update(&mut self, engine: &mut Engine) -> Result<(), latr::LatrError> {
-        if(self.t) {
+        if self.t {
             engine.move_camera(20.0, 0.0, 0.0);
             self.t = false;
         } else {

@@ -39,6 +39,7 @@ pub fn run_event_loop<T: PhysicsLoop + 'static + std::marker::Send>(
     // Wgpu handles this very helpfully and treats a wgpu::Buffer as atomically ref counted (At least I believe so)
     let secondary_buffers = gpu_core.buffers.clone();
     let secondary_queue = gpu_core.queue.clone();
+    let secondary_device = gpu_core.device.clone();
 
     let secondary_config = config.clone();
 
@@ -46,7 +47,8 @@ pub fn run_event_loop<T: PhysicsLoop + 'static + std::marker::Send>(
 
         // Move these explicitly
         let mut secondary_buffers = secondary_buffers;
-        let mut secondary_queue = secondary_queue;
+        let secondary_queue = secondary_queue;
+        let secondary_device = secondary_device;
 
         let secondary_config = secondary_config;
         let mut engine = engine_core;
@@ -59,9 +61,7 @@ pub fn run_event_loop<T: PhysicsLoop + 'static + std::marker::Send>(
 
         // Run our first bvh task
         match secondary_config.model_file {
-            Some(model_file) => {
-                bvh_res = build_blas(model_file, &mut secondary_buffers, &mut secondary_queue);
-            },
+            Some(model_file) => bvh_res = build_blas(model_file, &mut secondary_buffers, &secondary_queue, &secondary_device),
             None => (),
         }
 
@@ -78,7 +78,7 @@ pub fn run_event_loop<T: PhysicsLoop + 'static + std::marker::Send>(
 
         match state_tps_op {
             Some((state, tps)) => {
-                engine_res = engine.start_physics_loop(state, tps, &mut secondary_buffers, &mut secondary_queue);
+                engine_res = engine.start_physics_loop(state, tps, &mut secondary_buffers, &secondary_queue);
             },
             None => (),
         }

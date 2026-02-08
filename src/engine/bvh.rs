@@ -13,27 +13,32 @@ pub trait BvhPrimitive {
     fn get_aabb(&self) -> AABB;
     fn get_centroid(&self) -> Vec3;
 }
-
+#[derive(Debug)]
+#[derive(PartialEq)]
 pub enum BvhNode {
     Leaf(BvhLeaf),
     Branch(BvhBranch)
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
+#[derive(PartialEq)]
 pub struct AABB {
     pub min: Vec3,
     pub max: Vec3,
 }
 
+#[derive(Debug)]
+#[derive(PartialEq)]
 struct BvhBranch {
     left: Box<BvhNode>,
     right: Box<BvhNode>,
     aabb: AABB,
 }
 
-struct BvhLeaf {
-    aabb: AABB,
-    idx: usize,
+#[derive(Debug, PartialEq)]
+pub struct BvhLeaf {
+    pub(crate) aabb: AABB,
+    pub(crate) idx: usize,
 }
 
 #[derive(Clone, Copy)]
@@ -80,11 +85,7 @@ impl BvhNode {
             centroids: &centroids,
         };
 
-        let mut parent_centroid_box = AABB::new_max_inv();
-
-        for tri_idx in idxs.iter() {
-            parent_centroid_box.grow_from_point(recurse_ctx.centroids[*tri_idx]);
-        }
+        let parent_centroid_box = get_parent_bounds(&idxs, recurse_ctx);
 
         bvh_recurse(&mut idxs, parent_centroid_box, recurse_ctx)
     }
@@ -110,6 +111,8 @@ impl BvhNode {
         child_deque.extend(self.take_4(0).into_iter().flatten());
 
         while let Some((node, parent_idx)) = child_deque.pop_front() {
+
+
             // First we do the preprocessing, which is updating the parent with this nodes information
             // We scope this to drop our mutable ref to the storage vec after this is done, and it looks nice
             {
@@ -152,14 +155,17 @@ impl BvhNode {
         let mut child_num: usize = 0;
         let mut ret_arr: [Option<DequeChild>; 4] = [const { None }; 4];
 
-        let BvhNode::Branch(branch) = self else {
-            return ret_arr;
-        };
+        match self {
+            BvhNode::Leaf(_) => {
+                ret_arr[0] = Some((Box::new(self), parent_idx));
+            },
+            BvhNode::Branch(branch) => {
+                let (left, right) = (branch.left, branch.right);
 
-        let (left, right) = (branch.left, branch.right);
-
-        Self::match_child(left, &mut ret_arr, &mut child_num, parent_idx);
-        Self::match_child(right, &mut ret_arr, &mut child_num, parent_idx);
+                Self::match_child(left, &mut ret_arr, &mut child_num, parent_idx);
+                Self::match_child(right, &mut ret_arr, &mut child_num, parent_idx);
+            }
+        }
 
         ret_arr
     }
@@ -262,7 +268,6 @@ impl Default for AABB {
 // If idxs is a single usize, then we have a single triangle. In this case, we recurse
 // with parent bounds being equal to
 fn bvh_recurse(idxs: &mut [usize], parent_bounds: AABB, ctx: RecurseCtx) -> BvhNode {
-
     if idxs.len() == 1 {
         return BvhNode::Leaf(BvhLeaf {
             idx: idxs[0],
@@ -270,7 +275,21 @@ fn bvh_recurse(idxs: &mut [usize], parent_bounds: AABB, ctx: RecurseCtx) -> BvhN
         });
     }
 
-
-
     todo!()
+}
+
+fn get_parent_bounds(idxs: &[usize], ctx: RecurseCtx) -> AABB {
+    let mut bounds = AABB::new_max_inv();
+
+    if idxs.len() == 1 {
+        bounds = ctx.aabbs[idxs[0]];
+    } else if idxs.len() > 1 {
+
+        for tri_idx in idxs.iter() {
+            bounds.grow_from_point(ctx.centroids[*tri_idx]);
+        }
+
+    }
+
+    bounds
 }
